@@ -128,27 +128,23 @@
             updateUIWithNewName(s.name);
         }
 
-        // --- 追加：問題データの管理用変数 ---
         let currentQuestions = [];
         let currentSubjectId = "";
 
-        // --- 変更：showSubject 関数（JSONデータの読み込みと単元選択の追加） ---
         async function showSubject(id) {
             currentSubjectId = id;
             const s = getStats();
             const subject = subjects.find(sj => sj.id === id);
             const container = document.getElementById('view-container');
 
-            // ローディング表示
             container.innerHTML = `<div class="flex items-center justify-center min-h-[50vh]"><i class="fa-solid fa-circle-notch animate-spin text-4xl text-blue-500"></i></div>`;
 
             try {
-                // 教科ID + 2basic.json（例: kokugo2basic.json）を読み込む
-                const response = await fetch(`${id}2basic.json`);
+                // 修正箇所：questions/ フォルダ内のファイルを取得
+                const response = await fetch(`questions/${id}2basic.json`);
                 if (!response.ok) throw new Error();
                 currentQuestions = await response.json();
 
-                // 重複を除いた単元名のリストを作成
                 const units = [...new Set(currentQuestions.map(q => q.unit))];
 
                 container.innerHTML = `
@@ -182,13 +178,12 @@
                 container.innerHTML = `
                     <div class="text-center py-20">
                         <i class="fa-solid fa-circle-exclamation text-4xl text-red-400 mb-4"></i>
-                        <p class="font-black text-slate-500">問題データ (${id}2basic.json) が<br>見つかりませんでした</p>
+                        <p class="font-black text-slate-500">問題データ (questions/${id}2basic.json) が<br>見つかりませんでした</p>
                         <button onclick="showHome()" class="mt-8 px-8 py-3 bg-slate-200 dark:bg-slate-800 rounded-full font-black text-sm">ホームへ戻る</button>
                     </div>`;
             }
         }
 
-        // --- 新設：トレーニング開始（プレースホルダ） ---
         function startTraining(unit) {
             openModal(unit, "<i class='fa-solid fa-rocket text-blue-500'></i>", "READY", "トレーニング画面は現在開発中です。\n選択された単元のデータは正常にロードされています。");
         }
