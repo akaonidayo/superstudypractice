@@ -105,7 +105,6 @@
             if(homeName) homeName.innerText = name;
         }
 
-        // 修正箇所：onclickの遷移先をshowSubjectに修正
         function showHome() {
             const s = getStats();
             document.getElementById('view-container').innerHTML = `
@@ -129,33 +128,69 @@
             updateUIWithNewName(s.name);
         }
 
-        // 新設：各教科の詳細画面を表示する関数
-        function showSubject(id) {
+        // --- 追加：問題データの管理用変数 ---
+        let currentQuestions = [];
+        let currentSubjectId = "";
+
+        // --- 変更：showSubject 関数（JSONデータの読み込みと単元選択の追加） ---
+        async function showSubject(id) {
+            currentSubjectId = id;
             const s = getStats();
             const subject = subjects.find(sj => sj.id === id);
-            document.getElementById('view-container').innerHTML = `
-                <div class="fade-in">
-                    <button onclick="showHome()" class="text-slate-400 font-black text-xs mb-4 flex items-center gap-2">
-                        <i class="fa-solid fa-arrow-left"></i> 戻る
-                    </button>
-                    <div class="flex items-center gap-4 mb-8">
-                        <div class="w-16 h-16 rounded-2xl flex items-center justify-center text-white text-2xl ${subject.color} shadow-lg">
-                            <i class="fa-solid ${subject.icon}"></i>
+            const container = document.getElementById('view-container');
+
+            // ローディング表示
+            container.innerHTML = `<div class="flex items-center justify-center min-h-[50vh]"><i class="fa-solid fa-circle-notch animate-spin text-4xl text-blue-500"></i></div>`;
+
+            try {
+                // 教科ID + 2basic.json（例: kokugo2basic.json）を読み込む
+                const response = await fetch(`${id}2basic.json`);
+                if (!response.ok) throw new Error();
+                currentQuestions = await response.json();
+
+                // 重複を除いた単元名のリストを作成
+                const units = [...new Set(currentQuestions.map(q => q.unit))];
+
+                container.innerHTML = `
+                    <div class="fade-in">
+                        <button onclick="showHome()" class="text-slate-400 font-black text-xs mb-4 flex items-center gap-2">
+                            <i class="fa-solid fa-arrow-left"></i> 戻る
+                        </button>
+                        <div class="flex items-center gap-4 mb-8">
+                            <div class="w-16 h-16 rounded-2xl flex items-center justify-center text-white text-2xl ${subject.color} shadow-lg">
+                                <i class="fa-solid ${subject.icon}"></i>
+                            </div>
+                            <div>
+                                <h2 class="text-3xl font-black">${subject.name}</h2>
+                                <p class="text-slate-400 font-bold text-sm">学習する単元を選択してください</p>
+                            </div>
                         </div>
-                        <div>
-                            <h2 class="text-3xl font-black">${subject.name}</h2>
-                            <p class="text-slate-400 font-bold text-sm">現在の正解数: ${s[id]}問</p>
+                        
+                        <div class="grid gap-3">
+                            ${units.map(unit => `
+                                <button onclick="startTraining('${unit}')" class="card-ui p-5 rounded-2xl flex items-center justify-between hover:border-blue-500 transition-all active:scale-95">
+                                    <span class="font-black text-lg">${unit}</span>
+                                    <div class="flex items-center gap-3">
+                                        <span class="text-[10px] font-black text-slate-300 uppercase tracking-tighter">Start</span>
+                                        <i class="fa-solid fa-circle-play text-blue-500 text-2xl"></i>
+                                    </div>
+                                </button>
+                            `).join('')}
                         </div>
-                    </div>
-                    <div class="card-ui p-10 rounded-[2.5rem] text-center shadow-sm">
-                        <p class="text-slate-400 font-black text-sm mb-6 uppercase tracking-widest">Training Mode</p>
-                        <div class="py-12 border-2 border-dashed border-slate-200 dark:border-slate-800 rounded-[2rem] mb-6">
-                            <i class="fa-solid fa-laptop-code text-4xl text-slate-200 mb-4"></i>
-                            <p class="text-slate-400 font-bold">問題コンテンツを準備中...</p>
-                        </div>
-                        <button onclick="showHome()" class="w-full py-4 bg-blue-600 text-white rounded-full font-black shadow-lg">ホームに戻る</button>
-                    </div>
-                </div>`;
+                    </div>`;
+            } catch (e) {
+                container.innerHTML = `
+                    <div class="text-center py-20">
+                        <i class="fa-solid fa-circle-exclamation text-4xl text-red-400 mb-4"></i>
+                        <p class="font-black text-slate-500">問題データ (${id}2basic.json) が<br>見つかりませんでした</p>
+                        <button onclick="showHome()" class="mt-8 px-8 py-3 bg-slate-200 dark:bg-slate-800 rounded-full font-black text-sm">ホームへ戻る</button>
+                    </div>`;
+            }
+        }
+
+        // --- 新設：トレーニング開始（プレースホルダ） ---
+        function startTraining(unit) {
+            openModal(unit, "<i class='fa-solid fa-rocket text-blue-500'></i>", "READY", "トレーニング画面は現在開発中です。\n選択された単元のデータは正常にロードされています。");
         }
 
         function showProfile() {
@@ -200,7 +235,7 @@
             document.getElementById('modal-title').innerText = title;
             document.getElementById('modal-icon').innerHTML = iconHtml;
             document.getElementById('modal-status').innerText = status;
-            document.getElementById('modal-status').className = `text-[10px] font-black tracking-widest mb-6 ${status === '獲得済み' ? 'text-emerald-500' : 'text-slate-400'}`;
+            document.getElementById('modal-status').className = `text-[10px] font-black tracking-widest mb-6 ${status === '獲得済み' || status === 'SUCCESS' ? 'text-emerald-500' : 'text-slate-400'}`;
             document.getElementById('modal-desc').innerText = desc;
             document.getElementById('modal').classList.add('active');
         }
