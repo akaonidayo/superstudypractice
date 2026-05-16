@@ -1,0 +1,11 @@
+[
+  {
+    "unit": "理科 第1学年 範囲",
+    "type": "input",
+    "question": "理科 中1のinput形式のサンプル問題です。",
+    "answer": "正解",
+    "hint": "これはヒントです。",
+    "explanation": "これは解説文です。ここに解き方の詳細を記述します。",
+    "options_explanation": ""
+  }
+]
