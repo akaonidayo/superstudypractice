@@ -11,8 +11,11 @@
         body { font-family: 'Noto Sans JP', sans-serif; transition: 0.3s; user-select: none; margin: 0; }
         .app-bg { min-height: 100vh; display: flex; flex-direction: column; transition: 0.3s; }
         
-        body:not(.dark) .app-bg { background-color: #f1f5f9; color: #0f172a; }
-        body:not(.dark) .card-ui { background: white; border: 1px solid #e2e8f0; }
+        /* 基本スタイル（ライトモード） */
+        .app-bg { background-color: #f1f5f9; color: #0f172a; }
+        .card-ui { background: white; border: 1px solid #e2e8f0; }
+
+        /* 修正：htmlタグに .dark がついた時の挙動を一貫させる */
         .dark .app-bg { background-color: #020617; color: #f8fafc; }
         .dark .card-ui { background: #1e293b; border: 1px solid #334155; }
         .dark input, .dark textarea { background: #0f172a; color: white; border-color: #334155; }
@@ -185,14 +188,12 @@
                 </div>`;
         }
 
-        // --- 問題取得 ---
         async function fetchQuestions(type) {
             state.type = type;
             const container = document.getElementById('view-container');
             container.innerHTML = `<div class="flex items-center justify-center min-h-[50vh]"><i class="fa-solid fa-circle-notch animate-spin text-4xl text-blue-500"></i></div>`;
             
             try {
-                // 指示通り questions/ フォルダ内を参照
                 const response = await fetch(`questions/${state.subj}${state.grade}${type}.json`);
                 if (!response.ok) throw new Error();
                 const data = await response.json();
@@ -209,7 +210,6 @@
             }
         }
 
-        // --- 問題レンダリング ---
         function render() {
             if (state.index >= state.queue.length) { finish(); return; }
             const q = state.queue[state.index];
@@ -244,11 +244,11 @@
             }
             if (state.type === 'input') {
                 return `
-                    <input type="text" id="userInput" class="w-full p-5 border-2 rounded-2xl mb-4 text-center font-bold text-2xl" placeholder="答えを入力" autofocus>
+                    <input type="text" id="userInput" class="w-full p-5 border-2 rounded-2xl mb-4 text-center font-bold text-2xl dark:bg-slate-800 dark:border-slate-700 dark:text-white" placeholder="答えを入力" autofocus>
                     <button onclick="check(document.getElementById('userInput').value)" class="w-full p-5 bg-blue-600 text-white rounded-2xl font-black shadow-lg">回答を送信</button>`;
             }
             return `
-                <textarea id="userText" class="w-full p-5 border-2 rounded-2xl mb-4 h-40 font-medium" placeholder="ここに考え方をメモできます..."></textarea>
+                <textarea id="userText" class="w-full p-5 border-2 rounded-2xl mb-4 h-40 font-medium dark:bg-slate-800 dark:border-slate-700 dark:text-white" placeholder="ここに考え方をメモできます..."></textarea>
                 <button onclick="check('essay_confirm')" class="w-full p-5 bg-amber-500 text-white rounded-2xl font-black shadow-lg">正解を確認する</button>`;
         }
 
@@ -267,8 +267,9 @@
         function showExplanation(isCorrect, q) {
             const overlay = document.createElement('div'); 
             overlay.className = 'fixed inset-0 bg-black/60 z-[60] flex items-end';
+            // 修正：解説エリアの背景色と文字色にダークモード対応を追加
             overlay.innerHTML = `
-                <div class="w-full bg-white rounded-t-[40px] p-8 slide-up dark:bg-slate-900 border-t-4 ${isCorrect ? 'border-red-500' : 'border-blue-500'}">
+                <div class="w-full bg-white dark:bg-slate-900 rounded-t-[40px] p-8 slide-up border-t-4 ${isCorrect ? 'border-red-500' : 'border-blue-500'}">
                     <div class="max-w-md mx-auto pb-8">
                         <div class="flex justify-between items-center mb-6">
                             <h3 class="text-3xl font-black ${isCorrect ? 'text-red-500' : 'text-blue-500'}">${isCorrect ? '正解！' : '不正解...'}</h3>
@@ -276,7 +277,7 @@
                         </div>
                         <div class="p-5 bg-slate-50 dark:bg-slate-800 rounded-2xl">
                             <p class="text-[10px] font-black text-slate-400 mb-2 uppercase tracking-widest">解説</p>
-                            <p class="font-bold text-sm leading-relaxed">${q.explanation}</p>
+                            <p class="font-bold text-sm leading-relaxed dark:text-slate-200">${q.explanation}</p>
                         </div>
                     </div>
                 </div>`;
@@ -306,7 +307,6 @@
                 </div>`;
         }
 
-        // --- プロフィール・バッジ ---
         function showProfile() {
             const s = getStats();
             document.getElementById('view-container').innerHTML = `
@@ -315,7 +315,7 @@
                     <div class="card-ui p-6 rounded-[2.5rem] mb-6 shadow-sm">
                         <label class="text-[10px] font-black text-slate-400 uppercase mb-3 block px-1">ニックネーム</label>
                         <div class="flex flex-wrap gap-3">
-                            <input type="text" id="nn" value="${s.name}" class="flex-1 min-w-[150px] p-4 rounded-full font-black outline-none border-2 transition-all focus:border-blue-500">
+                            <input type="text" id="nn" value="${s.name}" class="flex-1 min-w-[150px] p-4 rounded-full font-black outline-none border-2 transition-all focus:border-blue-500 dark:bg-slate-800 dark:border-slate-700 dark:text-white">
                             <button onclick="saveName()" class="bg-blue-600 text-white px-8 py-4 rounded-full font-black shadow-lg">保存</button>
                         </div>
                     </div>
@@ -372,7 +372,9 @@
                 </div>`; 
         }
 
+        // --- テーマ切り替えの修正 ---
         document.getElementById('themeToggle').onclick = () => {
+            // bodyではなくdocumentElement(htmlタグ)を操作
             document.documentElement.classList.toggle('dark');
             const isDark = document.documentElement.classList.contains('dark');
             document.getElementById('themeToggle').innerHTML = isDark ? '<i class="fa-solid fa-sun text-yellow-400"></i>' : '<i class="fa-solid fa-moon"></i>';
