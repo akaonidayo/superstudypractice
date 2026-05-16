@@ -66,7 +66,6 @@
     </div>
 
     <script>
-        // バッジデータ等の定数はそのまま維持
         const badgeNames = ["最初の一歩", "学びの芽生え", "ノートの旅人", "ペン先の魔術師", "放課後の覇者", "知識の狩人", "朝活の達人", "記憶の保管者", "図書室の主", "インクの騎士", "閃きの開拓者", "論理の守護者", "集中力の権化", "努力の結晶", "学問の徒", "真理の門", "鉛筆の踊り子", "辞書の探検家", "知性の翼", "静寂の読書家", "数学の天才", "公式の使い手", "計算の荒獅子", "論理の要塞", "数の求道者", "英単語の王", "文法の支配者", "翻訳の達人", "語学の聖域", "対話の達人", "理科の観測者", "元素の支配者", "宇宙の目撃者", "実験の鬼", "自然の友", "歴史の証言者", "地図の覇者", "文明の伝承者", "社会の設計士", "時代の語り部"];
         const badges = [];
         for(let i=0; i<100; i++) {
@@ -96,21 +95,17 @@
         
         function saveStats(s) { 
             document.cookie = `${COOKIE_KEY}=${JSON.stringify(s)}; max-age=31536000; path=/`; 
-            // 名前変更を反映
             updateUIWithNewName(s.name);
         }
 
-        // 名前の表示をすべて更新する関数
         function updateUIWithNewName(name) {
-            // ヘッダータイトルの更新
             const headerName = document.getElementById('header-display-name');
             if(headerName) headerName.innerText = name;
-            
-            // ホーム画面の名前の更新
             const homeName = document.getElementById('home-user-name');
             if(homeName) homeName.innerText = name;
         }
 
+        // 修正箇所：onclickの遷移先をshowSubjectに修正
         function showHome() {
             const s = getStats();
             document.getElementById('view-container').innerHTML = `
@@ -121,7 +116,7 @@
                     </div>
                     <div class="grid gap-4">
                         ${subjects.map(sj => `
-                            <button onclick="showHome()" class="card-ui p-6 flex items-center justify-between rounded-[2rem] shadow-sm active:scale-95 transition-all">
+                            <button onclick="showSubject('${sj.id}')" class="card-ui p-6 flex items-center justify-between rounded-[2rem] shadow-sm active:scale-95 transition-all">
                                 <div class="flex items-center gap-5">
                                     <div class="w-14 h-14 rounded-2xl flex items-center justify-center text-white text-xl ${sj.color} shadow-lg"><i class="fa-solid ${sj.icon}"></i></div>
                                     <span class="font-black text-xl">${sj.name}</span>
@@ -131,8 +126,36 @@
                         `).join('')}
                     </div>
                 </div>`;
-            // 描画後にヘッダー等の名前も整合させる
             updateUIWithNewName(s.name);
+        }
+
+        // 新設：各教科の詳細画面を表示する関数
+        function showSubject(id) {
+            const s = getStats();
+            const subject = subjects.find(sj => sj.id === id);
+            document.getElementById('view-container').innerHTML = `
+                <div class="fade-in">
+                    <button onclick="showHome()" class="text-slate-400 font-black text-xs mb-4 flex items-center gap-2">
+                        <i class="fa-solid fa-arrow-left"></i> 戻る
+                    </button>
+                    <div class="flex items-center gap-4 mb-8">
+                        <div class="w-16 h-16 rounded-2xl flex items-center justify-center text-white text-2xl ${subject.color} shadow-lg">
+                            <i class="fa-solid ${subject.icon}"></i>
+                        </div>
+                        <div>
+                            <h2 class="text-3xl font-black">${subject.name}</h2>
+                            <p class="text-slate-400 font-bold text-sm">現在の正解数: ${s[id]}問</p>
+                        </div>
+                    </div>
+                    <div class="card-ui p-10 rounded-[2.5rem] text-center shadow-sm">
+                        <p class="text-slate-400 font-black text-sm mb-6 uppercase tracking-widest">Training Mode</p>
+                        <div class="py-12 border-2 border-dashed border-slate-200 dark:border-slate-800 rounded-[2rem] mb-6">
+                            <i class="fa-solid fa-laptop-code text-4xl text-slate-200 mb-4"></i>
+                            <p class="text-slate-400 font-bold">問題コンテンツを準備中...</p>
+                        </div>
+                        <button onclick="showHome()" class="w-full py-4 bg-blue-600 text-white rounded-full font-black shadow-lg">ホームに戻る</button>
+                    </div>
+                </div>`;
         }
 
         function showProfile() {
@@ -173,7 +196,6 @@
             openModal("保存完了", "<i class='fa-solid fa-check-circle text-emerald-500'></i>", "SUCCESS", "ニックネームを更新しました！");
         }
 
-        // その他の共通関数
         function openModal(title, iconHtml, status, desc) {
             document.getElementById('modal-title').innerText = title;
             document.getElementById('modal-icon').innerHTML = iconHtml;
@@ -183,7 +205,7 @@
             document.getElementById('modal').classList.add('active');
         }
         function closeModal() { document.getElementById('modal').classList.remove('active'); }
-        function showBadges() { /* 同上のロジック */ const s = getStats(); document.getElementById('view-container').innerHTML = `<div class="fade-in"><h2 class="text-3xl font-black mt-6 mb-10 px-1">コレクション</h2><div class="badge-grid">${badges.map((b) => { const val = s.total || 0; const isUnlocked = val >= b.t; const isHiding = b.s === 1 && !isUnlocked; const iconClass = isUnlocked ? b.c : 'text-slate-200 dark:text-slate-700'; const borderClass = isUnlocked ? b.c.replace('text','border') : 'border-transparent'; const iconHtml = `<div class="card-ui w-20 h-20 flex items-center justify-center rounded-[2.2rem] border-2 ${borderClass} shadow-inner"><i class="fa-solid ${isHiding ? 'fa-lock' : b.i} ${iconClass} text-3xl"></i></div>`; const displayName = isHiding ? '？？？？' : b.n; const statusText = isUnlocked ? '獲得済み' : '未獲得'; let desc = isUnlocked ? `獲得済み！\n累計 ${b.t} 問正解を達成しました。` : (!isHiding ? `あと ${b.t - val} 問正解で獲得できます。\n(目標: ${b.t} / 現在: ${val})` : `このバッジの正体は秘密です。`); return `<button onclick="openModal('${displayName}', '${iconHtml.replace(/"/g, '&quot;')}', '${statusText}', '${desc.replace(/\n/g, '\\n')}')" class="badge-btn active:scale-90">${iconHtml}<span class="badge-text font-black ${isHiding ? 'text-slate-400' : ''}">${displayName}</span></button>`; }).join('')}</div></div>`; }
+        function showBadges() { const s = getStats(); document.getElementById('view-container').innerHTML = `<div class="fade-in"><h2 class="text-3xl font-black mt-6 mb-10 px-1">コレクション</h2><div class="badge-grid">${badges.map((b) => { const val = s.total || 0; const isUnlocked = val >= b.t; const isHiding = b.s === 1 && !isUnlocked; const iconClass = isUnlocked ? b.c : 'text-slate-200 dark:text-slate-700'; const borderClass = isUnlocked ? b.c.replace('text','border') : 'border-transparent'; const iconHtml = `<div class="card-ui w-20 h-20 flex items-center justify-center rounded-[2.2rem] border-2 ${borderClass} shadow-inner"><i class="fa-solid ${isHiding ? 'fa-lock' : b.i} ${iconClass} text-3xl"></i></div>`; const displayName = isHiding ? '？？？？' : b.n; const statusText = isUnlocked ? '獲得済み' : '未獲得'; let desc = isUnlocked ? `獲得済み！\n累計 ${b.t} 問正解を達成しました。` : (!isHiding ? `あと ${b.t - val} 問正解で獲得できます。\n(目標: ${b.t} / 現在: ${val})` : `このバッジの正体は秘密です。`); return `<button onclick="openModal('${displayName}', '${iconHtml.replace(/"/g, '&quot;')}', '${statusText}', '${desc.replace(/\n/g, '\\n')}')" class="badge-btn active:scale-90">${iconHtml}<span class="badge-text font-black ${isHiding ? 'text-slate-400' : ''}">${displayName}</span></button>`; }).join('')}</div></div>`; }
         document.getElementById('themeToggle').onclick = () => { document.documentElement.classList.toggle('dark'); const isDark = document.documentElement.classList.contains('dark'); document.getElementById('themeToggle').innerHTML = isDark ? '<i class="fa-solid fa-sun text-yellow-400"></i>' : '<i class="fa-solid fa-moon"></i>'; };
 
         showHome();
