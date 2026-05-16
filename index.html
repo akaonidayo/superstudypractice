@@ -8,362 +8,183 @@
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;700;900&display=swap');
-        body { font-family: 'Noto Sans JP', sans-serif; transition: 0.3s; user-select: none; }
+        body { font-family: 'Noto Sans JP', sans-serif; transition: 0.3s; user-select: none; margin: 0; }
+        .app-bg { min-height: 100vh; display: flex; flex-direction: column; transition: 0.3s; }
         
-        /* ライトモードの視認性向上：コントラストを強化 */
-        body:not(.dark) { background-color: #f1f5f9; color: #0f172a; }
-        body:not(.dark) .bg-white { border: 1px solid #e2e8f0; box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.05); }
-        
-        .dark { background-color: #0f172a; color: #f8fafc; }
-        .dark .bg-white { background-color: #1e293b; color: #f8fafc; border-color: #334155; }
-        
-        /* プログレスバーのアニメーション */
-        .progress-bar { transition: width 0.4s cubic-bezier(0.4, 0, 0.2, 1); }
+        body:not(.dark) .app-bg { background-color: #f1f5f9; color: #0f172a; }
+        body:not(.dark) .card-ui { background: white; border: 1px solid #e2e8f0; }
+        .dark .app-bg { background-color: #020617; color: #f8fafc; }
+        .dark .card-ui { background: #1e293b; border: 1px solid #334155; }
+        .dark input { background: #0f172a; color: white; border-color: #334155; }
 
-        @keyframes popFade { 0% { transform: translate(-50%, -40%) scale(0.5); opacity: 0; } 50% { transform: translate(-50%, -50%) scale(1.2); opacity: 1; } 100% { transform: translate(-50%, -60%) scale(1); opacity: 0; } }
-        .feedback-pop { position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); font-size: 150px; z-index: 1000; pointer-events: none; animation: popFade 0.8s cubic-bezier(0.17, 0.89, 0.32, 1.28) forwards; }
-        .slide-up { animation: slideUp 0.4s ease-out forwards; }
-        @keyframes slideUp { from { transform: translateY(100%); } to { transform: translateY(0); } }
-        .fade-in { animation: fadeIn 0.3s ease-out forwards; }
-        @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+        .modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.8); display: flex; align-items: center; justify-content: center; z-index: 100; opacity: 0; pointer-events: none; transition: 0.3s; padding: 20px; }
+        .modal-overlay.active { opacity: 1; pointer-events: auto; }
+        .modal-content { transform: scale(0.9); transition: 0.3s cubic-bezier(0.34, 1.56, 0.64, 1); width: 100%; max-width: 340px; }
+        .modal-overlay.active .modal-content { transform: scale(1); }
+
+        .fade-in { animation: fadeIn 0.4s ease-out forwards; }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+
+        .badge-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; row-gap: 32px; }
+        .badge-btn { display: flex; flex-direction: column; align-items: center; width: 100%; transition: 0.2s; }
+        .badge-text { 
+            font-size: 10px; font-weight: 900; line-height: 1.2; height: 2.4em; 
+            display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical;
+            overflow: hidden; text-align: center; margin-top: 8px; width: 100%;
+        }
+        progress::-webkit-progress-bar { background-color: #e2e8f0; border-radius: 10px; }
+        .dark progress::-webkit-progress-bar { background-color: #334155; }
     </style>
 </head>
-<body class="overflow-x-hidden">
-
-    <div id="app" class="flex flex-col min-h-screen">
-        <header class="h-16 border-b bg-white/90 backdrop-blur sticky top-0 z-50 flex items-center justify-between px-6 dark:bg-slate-900/90 dark:border-slate-800">
+<body>
+    <div id="app" class="app-bg">
+        <header class="h-16 border-b backdrop-blur sticky top-0 z-50 flex items-center justify-between px-6 dark:border-slate-800">
             <div class="flex items-center gap-2 cursor-pointer" onclick="showHome()">
-                <div class="w-8 h-8 bg-blue-600 rounded-lg flex items-center justify-center text-white shadow-lg">
-                    <i class="fa-solid fa-pen-nib"></i>
-                </div>
-                <h1 class="font-black text-xl italic tracking-tighter">StudyCanvas</h1>
+                <div class="w-9 h-9 bg-blue-600 rounded-xl flex items-center justify-center text-white shadow-lg"><i class="fa-solid fa-pen-nib"></i></div>
+                <h1 class="font-black text-xl italic tracking-tighter" id="header-display-name">StudyCanvas</h1>
             </div>
-            <button id="themeToggle" class="w-10 h-10 rounded-xl bg-slate-200 dark:bg-slate-800 flex items-center justify-center transition-transform active:scale-90">
-                <i class="fa-solid fa-moon"></i>
-            </button>
+            <button id="themeToggle" class="w-10 h-10 rounded-full bg-slate-200 dark:bg-slate-800 flex items-center justify-center transition-all"><i class="fa-solid fa-moon"></i></button>
         </header>
 
-        <main id="view-container" class="flex-1 p-5 pb-28 max-w-md mx-auto w-full"></main>
-        <div id="feedback-layer"></div>
-
-        <nav class="fixed bottom-0 left-0 right-0 h-20 bg-white/90 backdrop-blur border-t flex items-center justify-around z-40 dark:bg-slate-900/90 dark:border-slate-800">
-            <button onclick="showHome()" class="flex flex-col items-center gap-1 text-blue-600">
-                <i class="fa-solid fa-house-chimney text-xl"></i>
-                <span class="text-[10px] font-black uppercase">Home</span>
-            </button>
-            <button onclick="showBadges()" class="flex flex-col items-center gap-1 text-slate-500 dark:text-slate-400">
-                <i class="fa-solid fa-award text-xl"></i>
-                <span class="text-[10px] font-black uppercase">Badges</span>
-            </button>
-            <button onclick="showProfile()" class="flex flex-col items-center gap-1 text-slate-500 dark:text-slate-400">
-                <i class="fa-solid fa-user-gear text-xl"></i>
-                <span class="text-[10px] font-black uppercase">Profile</span>
-            </button>
+        <main id="view-container" class="flex-1 p-5 pb-32 max-w-md mx-auto w-full"></main>
+        
+        <nav class="fixed bottom-0 left-0 right-0 h-20 backdrop-blur border-t flex items-center justify-around z-40 dark:border-slate-800">
+            <button onclick="showHome()" class="flex flex-col items-center text-slate-400 font-black active:text-blue-600 transition-colors"><i class="fa-solid fa-house-chimney text-xl"></i><span class="text-[10px] mt-1">HOME</span></button>
+            <button onclick="showBadges()" class="flex flex-col items-center text-slate-400 font-black active:text-blue-600 transition-colors"><i class="fa-solid fa-award text-xl"></i><span class="text-[10px] mt-1">BADGES</span></button>
+            <button onclick="showProfile()" class="flex flex-col items-center text-slate-400 font-black active:text-blue-600 transition-colors"><i class="fa-solid fa-user-gear text-xl"></i><span class="text-[10px] mt-1">PROFILE</span></button>
         </nav>
     </div>
 
+    <div id="modal" class="modal-overlay" onclick="closeModal()">
+        <div class="modal-content card-ui p-8 text-center shadow-2xl rounded-[2.5rem]" onclick="event.stopPropagation()">
+            <div id="modal-icon" class="text-6xl mb-4"></div>
+            <h3 id="modal-title" class="text-2xl font-black mb-1"></h3>
+            <p id="modal-status" class="text-[10px] font-black tracking-widest mb-6"></p>
+            <p id="modal-desc" class="text-slate-500 dark:text-slate-400 font-bold mb-8 leading-relaxed whitespace-pre-wrap text-sm"></p>
+            <button onclick="closeModal()" class="w-full py-4 bg-blue-600 text-white rounded-full font-black shadow-lg active:scale-95 transition-transform">OK</button>
+        </div>
+    </div>
+
     <script>
+        // バッジデータ等の定数はそのまま維持
+        const badgeNames = ["最初の一歩", "学びの芽生え", "ノートの旅人", "ペン先の魔術師", "放課後の覇者", "知識の狩人", "朝活の達人", "記憶の保管者", "図書室の主", "インクの騎士", "閃きの開拓者", "論理の守護者", "集中力の権化", "努力の結晶", "学問の徒", "真理の門", "鉛筆の踊り子", "辞書の探検家", "知性の翼", "静寂の読書家", "数学の天才", "公式の使い手", "計算の荒獅子", "論理の要塞", "数の求道者", "英単語の王", "文法の支配者", "翻訳の達人", "語学の聖域", "対話の達人", "理科の観測者", "元素の支配者", "宇宙の目撃者", "実験の鬼", "自然の友", "歴史の証言者", "地図の覇者", "文明の伝承者", "社会の設計士", "時代の語り部"];
+        const badges = [];
+        for(let i=0; i<100; i++) {
+            let icon = "fa-star", color = "text-yellow-500";
+            if(i < 10) { icon = "fa-seedling"; color = "text-green-500"; }
+            else if(i < 20) { icon = "fa-bolt"; color = "text-amber-500"; }
+            else if(i < 30) { icon = "fa-shield-halved"; color = "text-blue-500"; }
+            else if(i < 40) { icon = "fa-gem"; color = "text-cyan-500"; }
+            else if(i < 50) { icon = "fa-fire"; color = "text-red-500"; }
+            else if(i < 100) { icon = "fa-crown"; color = "text-yellow-600"; }
+            badges.push({ n: badgeNames[i] || `栄光の称号 #${i+1}`, t: (i + 1) * 10, i: icon, c: color, s: i >= 30 ? 1 : 0 });
+        }
+
         const subjects = [
-            { id: 'kokugo', name: '国語', color: 'bg-red-500', icon: 'fa-book-open', desc: '読解力と言語感覚を磨く', units: { 1: ["漢字", "文法", "古文"], 2: ["短歌", "随筆"], 3: ["論説", "和歌"] } },
-            { id: 'math', name: '数学', color: 'bg-blue-500', icon: 'fa-calculator', desc: '論理的思考と計算力を鍛える', units: { 1: ["正負の数", "文字式", "方程式"], 2: ["式の計算", "連立方程式", "一次関数"], 3: ["展開・因数分解", "平方根", "二次方程式"] } },
-            { id: 'science', name: '理科', color: 'bg-emerald-500', icon: 'fa-flask', desc: '自然の仕組みと科学を学ぶ', units: { 1: ["植物", "光・音"], 2: ["化学変化", "電気"], 3: ["運動", "天体"] } },
-            { id: 'social', name: '社会', color: 'bg-amber-500', icon: 'fa-earth-asia', desc: '歴史・地理・社会の構造を知る', units: { 1: ["地理", "歴史初期"], 2: ["歴史中期", "近現代"], 3: ["公民"] } },
-            { id: 'english', name: '英語', color: 'bg-purple-500', icon: 'fa-language', desc: '世界とつながる言葉を習得', units: { 1: ["Be動詞", "一般動詞"], 2: ["不定詞", "比較"], 3: ["現在完了", "関係代名詞"] } }
+            { id: 'math', name: '数学', color: 'bg-blue-500', icon: 'fa-calculator' },
+            { id: 'english', name: '英語', color: 'bg-purple-500', icon: 'fa-language' },
+            { id: 'science', name: '理科', color: 'bg-emerald-500', icon: 'fa-flask' },
+            { id: 'social', name: '社会', color: 'bg-amber-500', icon: 'fa-earth-asia' },
+            { id: 'kokugo', name: '国語', color: 'bg-red-500', icon: 'fa-book-open' }
         ];
 
-        let state = { subj: '', grade: '', unit: '', queue: [], index: 0, totalQuestions: 0, mistakes: [], isDark: false };
-
-        // --- COOKIE 管理 ---
-        function setStats(correctCount) {
-            let stats = getStats();
-            stats.totalCorrect += correctCount;
-            stats.totalSessions += 1;
-            document.cookie = `study_stats=${JSON.stringify(stats)}; max-age=31536000; path=/`;
+        const COOKIE_KEY = "canv_master_v1";
+        function getStats() { 
+            const m = document.cookie.match(new RegExp(COOKIE_KEY + '=([^;]+)')); 
+            return m ? JSON.parse(m[1]) : { name: "ゲスト", total: 0, math:0, english:0, science:0, social:0, kokugo:0 }; 
+        }
+        
+        function saveStats(s) { 
+            document.cookie = `${COOKIE_KEY}=${JSON.stringify(s)}; max-age=31536000; path=/`; 
+            // 名前変更を反映
+            updateUIWithNewName(s.name);
         }
 
-        function getStats() {
-            const match = document.cookie.match(/study_stats=([^;]+)/);
-            return match ? JSON.parse(match[1]) : { totalCorrect: 0, totalSessions: 0 };
+        // 名前の表示をすべて更新する関数
+        function updateUIWithNewName(name) {
+            // ヘッダータイトルの更新
+            const headerName = document.getElementById('header-display-name');
+            if(headerName) headerName.innerText = name;
+            
+            // ホーム画面の名前の更新
+            const homeName = document.getElementById('home-user-name');
+            if(homeName) homeName.innerText = name;
         }
 
-        // --- 画面表示 ---
         function showHome() {
+            const s = getStats();
             document.getElementById('view-container').innerHTML = `
                 <div class="fade-in">
-                    <h2 class="text-2xl font-black mb-1 mt-4">学習を始める</h2>
-                    <p class="text-slate-500 dark:text-slate-400 text-xs font-bold mb-6">目標の教科を選択してください</p>
+                    <div class="flex items-baseline gap-2 mt-6 mb-8">
+                        <span id="home-user-name" class="text-3xl font-black">${s.name}</span>
+                        <span class="text-slate-400 font-bold text-sm">さん</span>
+                    </div>
                     <div class="grid gap-4">
-                        ${subjects.map(s => `
-                            <button onclick="showGrade('${s.id}')" class="group p-5 bg-white rounded-[2rem] flex items-center gap-4 active:scale-95 transition-all dark:bg-slate-800">
-                                <div class="${s.color} w-14 h-14 rounded-2xl flex items-center justify-center text-white text-2xl shadow-lg shadow-${s.color}/30">
-                                    <i class="fa-solid ${s.icon}"></i>
+                        ${subjects.map(sj => `
+                            <button onclick="showHome()" class="card-ui p-6 flex items-center justify-between rounded-[2rem] shadow-sm active:scale-95 transition-all">
+                                <div class="flex items-center gap-5">
+                                    <div class="w-14 h-14 rounded-2xl flex items-center justify-center text-white text-xl ${sj.color} shadow-lg"><i class="fa-solid ${sj.icon}"></i></div>
+                                    <span class="font-black text-xl">${sj.name}</span>
                                 </div>
-                                <div class="text-left">
-                                    <span class="block font-black text-lg leading-none mb-1">${s.name}</span>
-                                    <span class="text-[10px] font-bold text-slate-400 group-hover:text-slate-600 transition-colors">${s.desc}</span>
-                                </div>
+                                <i class="fa-solid fa-chevron-right text-slate-300"></i>
                             </button>
                         `).join('')}
                     </div>
-                </div>
-            `;
-        }
-
-        function showGrade(subjId) {
-            state.subj = subjId;
-            document.getElementById('view-container').innerHTML = `
-                <div class="fade-in">
-                    <button onclick="showHome()" class="mb-4 text-slate-500 font-bold flex items-center gap-2"><i class="fa-solid fa-chevron-left"></i> 戻る</button>
-                    <h2 class="text-2xl font-black mb-2">学年を選択</h2>
-                    <p class="text-slate-500 text-xs font-bold mb-6">自分のレベルに合わせた学年を選びます</p>
-                    <div class="grid gap-3">
-                        ${[1, 2, 3].map(g => `
-                            <button onclick="showUnit('${subjId}', ${g})" class="p-6 bg-white rounded-[1.5rem] font-black text-xl flex justify-between items-center active:bg-blue-50 dark:active:bg-slate-700 transition-colors">
-                                中学校 第${g}学年
-                                <i class="fa-solid fa-chevron-right text-blue-500"></i>
-                            </button>
-                        `).join('')}
-                    </div>
-                </div>
-            `;
-        }
-
-        function showUnit(subjId, grade) {
-            state.grade = grade;
-            const subj = subjects.find(s => s.id === subjId);
-            const units = subj.units[grade] || [];
-            document.getElementById('view-container').innerHTML = `
-                <div class="fade-in">
-                    <button onclick="showGrade('${subjId}')" class="mb-4 text-slate-500 font-bold flex items-center gap-2"><i class="fa-solid fa-chevron-left"></i> 戻る</button>
-                    <h2 class="text-2xl font-black mb-2 italic">単元を選択</h2>
-                    <p class="text-slate-500 text-xs font-bold mb-6">集中して学習したい単元を選んでください</p>
-                    <div class="grid gap-3">
-                        ${units.map(u => `
-                            <button onclick="state.unit='${u}'; showLevel()" class="p-5 bg-white rounded-2xl font-bold text-left border-l-4 border-blue-500 hover:bg-blue-50 dark:hover:bg-slate-700 transition-colors">
-                                ${u}
-                            </button>
-                        `).join('')}
-                    </div>
-                </div>
-            `;
-        }
-
-        function showLevel() {
-            document.getElementById('view-container').innerHTML = `
-                <div class="fade-in text-center">
-                    <h2 class="text-2xl font-black mb-2 mt-6">レベルを選択</h2>
-                    <p class="text-slate-500 text-xs font-bold mb-10">問題の出題形式が変わります</p>
-                    <div class="grid gap-5">
-                        <button onclick="fetchQuestions('basic')" class="p-8 rounded-[2.5rem] bg-blue-600 text-white shadow-xl shadow-blue-500/20 font-black text-xl">
-                            基本・選択
-                            <span class="block text-[10px] opacity-70">4択の中から正解を選びます</span>
-                        </button>
-                        <button onclick="fetchQuestions('input')" class="p-8 rounded-[2.5rem] bg-emerald-500 text-white shadow-xl shadow-emerald-500/20 font-black text-xl">
-                            確かめ・入力
-                            <span class="block text-[10px] opacity-70">答えを直接キーボードで入力します</span>
-                        </button>
-                        <button onclick="fetchQuestions('essay')" class="p-8 rounded-[2.5rem] bg-amber-500 text-white shadow-xl shadow-amber-500/20 font-black text-xl">
-                            応用・記述
-                            <span class="block text-[10px] opacity-70">考え方を書き、解答と照らし合わせます</span>
-                        </button>
-                    </div>
-                </div>
-            `;
-        }
-
-        async function fetchQuestions(type) {
-            const fileName = `${state.subj}${state.grade}${type}.json`;
-            try {
-                const response = await fetch(`./questions/${fileName}`);
-                if (!response.ok) throw new Error();
-                const all = await response.json();
-                state.queue = all.filter(q => q.unit === state.unit);
-                state.index = 0;
-                state.totalQuestions = state.queue.length;
-                state.mistakes = [];
-                if (state.queue.length === 0) { alert(`${state.unit}の問題がまだありません。`); return; }
-                render();
-            } catch (e) { alert("問題が見つかりません。JSONファイルが正しいか確認してください。"); }
-        }
-
-        function render() {
-            if (state.index >= state.queue.length) { finish(); return; }
-            const q = state.queue[state.index];
-            const progress = ((state.index) / state.totalQuestions) * 100;
-            const container = document.getElementById('view-container');
-            
-            container.innerHTML = `
-                <div class="fade-in">
-                    <div class="flex justify-between items-center mb-2">
-                        <span class="px-3 py-1 bg-slate-900 text-white rounded-full text-[10px] font-black">${q.unit}</span>
-                        <div class="text-right">
-                            <span class="text-lg font-black text-blue-600">${state.index + 1}</span>
-                            <span class="text-xs font-bold text-slate-400"> / ${state.totalQuestions}</span>
-                        </div>
-                    </div>
-                    
-                    <div class="w-full h-2 bg-slate-200 dark:bg-slate-700 rounded-full mb-6 overflow-hidden">
-                        <div class="progress-bar h-full bg-blue-500 shadow-[0_0_8px_rgba(59,130,246,0.5)]" style="width: ${progress}%"></div>
-                    </div>
-
-                    <div class="relative p-10 bg-white rounded-[2.5rem] shadow-sm border dark:bg-slate-800 dark:border-slate-700 text-center mb-8 min-h-[160px] flex items-center justify-center">
-                        <p class="text-xl font-black leading-relaxed">${q.question}</p>
-                    </div>
-
-                    <div id="answer-zone" class="space-y-3">${renderUI(q)}</div>
-
-                    <div class="mt-10 flex justify-center">
-                        <button onclick="confirmExit()" class="text-xs font-black text-slate-400 hover:text-red-500 flex items-center gap-2 transition-colors italic">
-                            <i class="fa-solid fa-circle-stop text-sm"></i> 学習を一時中断する
-                        </button>
-                    </div>
-                </div>
-            `;
-        }
-
-        function confirmExit() {
-            if(confirm("ここまでの学習を保存して中断しますか？")) {
-                showHome();
-            }
-        }
-
-        function renderUI(q) {
-            if (q.type === 'basic') return q.options.map(o => `<button onclick="check('${o}')" class="w-full p-5 bg-white border-2 border-slate-100 rounded-2xl font-bold text-left active:scale-95 hover:border-blue-500 transition-all dark:bg-slate-800 dark:border-slate-700">${o}</button>`).join('');
-            if (q.type === 'input') return `<input type="text" id="userInput" class="w-full p-5 border-2 rounded-2xl mb-4 text-center font-bold text-2xl dark:bg-slate-700 dark:text-white" placeholder="答えを入力" autofocus><button onclick="check(document.getElementById('userInput').value)" class="w-full p-5 bg-blue-600 text-white rounded-2xl font-black shadow-lg">回答を送信</button>`;
-            return `<textarea id="userText" class="w-full p-5 border-2 rounded-2xl mb-4 h-40 font-medium dark:bg-slate-700 dark:text-white" placeholder="ここに考え方をメモできます..."></textarea><button onclick="showEssayAnswer()" class="w-full p-5 bg-amber-500 text-white rounded-2xl font-black shadow-lg">正解を確認する</button>`;
-        }
-
-        function showEssayAnswer() {
-            const q = state.queue[state.index];
-            document.getElementById('answer-zone').innerHTML = `
-                <div class="p-6 bg-blue-50 dark:bg-slate-700 rounded-3xl mb-5 text-sm font-bold border-2 border-blue-100 dark:border-slate-600">
-                    <span class="text-blue-600 dark:text-blue-400 text-xs block mb-2 font-black">【模範解答】</span>
-                    ${q.answer}
-                </div>
-                <div class="flex gap-4">
-                    <button onclick="check('wrong')" class="flex-1 p-5 bg-slate-200 text-slate-700 rounded-2xl font-black active:scale-95 transition-all">× 違った</button>
-                    <button onclick="check('correct')" class="flex-1 p-5 bg-emerald-500 text-white rounded-2xl font-black shadow-lg active:scale-95 transition-all">○ 合ってた！</button>
-                </div>
-            `;
-        }
-
-        function check(ans) {
-            const q = state.queue[state.index];
-            const isCorrect = (q.type === 'essay') ? (ans === 'correct') : (ans.trim() === q.answer);
-            
-            const pop = document.createElement('div'); pop.className = 'feedback-pop';
-            pop.innerHTML = isCorrect ? '<span class="text-red-500">○</span>' : '<span class="text-blue-500">×</span>';
-            document.getElementById('feedback-layer').appendChild(pop);
-            
-            setTimeout(() => pop.remove(), 800);
-            setTimeout(() => showExplanation(isCorrect, q), 500);
-        }
-
-        function showExplanation(isCorrect, q) {
-            const overlay = document.createElement('div'); overlay.className = 'fixed inset-0 bg-black/60 z-[60] flex items-end';
-            overlay.innerHTML = `
-                <div class="w-full bg-white rounded-t-[40px] p-8 slide-up dark:bg-slate-900 border-t-4 ${isCorrect ? 'border-red-500' : 'border-blue-500'}">
-                    <div class="max-w-md mx-auto">
-                        <div class="flex justify-between items-center mb-6">
-                            <h3 class="text-3xl font-black ${isCorrect ? 'text-red-500' : 'text-blue-500'}">${isCorrect ? '正解！' : '不正解...'}</h3>
-                            <button id="nextBtn" class="bg-blue-600 text-white px-10 py-4 rounded-2xl font-black shadow-lg">次へ進む</button>
-                        </div>
-                        <div class="p-5 bg-slate-50 dark:bg-slate-800 rounded-2xl">
-                            <p class="text-[10px] font-black text-slate-400 mb-2 uppercase tracking-widest">Explanation / 解説</p>
-                            <p class="font-bold text-sm leading-relaxed">${q.explanation}</p>
-                        </div>
-                    </div>
-                </div>
-            `;
-            document.body.appendChild(overlay);
-            document.getElementById('nextBtn').onclick = () => { 
-                overlay.remove(); 
-                if (!isCorrect) { 
-                    state.queue.push(q); 
-                    state.mistakes.push(q); 
-                } 
-                state.index++; 
-                render(); 
-            };
-        }
-
-        function finish() {
-            const correctCount = state.totalQuestions; // 間違えた問題も最終的に解き終える仕様のため
-            setStats(correctCount);
-            
-            document.getElementById('view-container').innerHTML = `
-                <div class="text-center py-10 fade-in">
-                    <div class="mb-6 inline-flex w-24 h-24 bg-yellow-400 rounded-full items-center justify-center text-white text-5xl shadow-xl shadow-yellow-200">
-                        <i class="fa-solid fa-crown"></i>
-                    </div>
-                    <h2 class="text-4xl font-black mb-2 italic">Finish!</h2>
-                    <p class="text-slate-500 font-bold mb-10 uppercase tracking-tighter">全問解き終わりました！</p>
-                    
-                    <div class="bg-white dark:bg-slate-800 p-6 rounded-3xl mb-8 border border-slate-100">
-                        <p class="text-xs font-black text-slate-400 mb-1">今回の獲得スコア</p>
-                        <p class="text-2xl font-black text-blue-600">+ ${correctCount} points</p>
-                    </div>
-
-                    <button onclick="showHome()" class="w-full p-6 bg-slate-900 text-white rounded-[2rem] font-black shadow-2xl active:scale-95 transition-all dark:bg-blue-600">
-                        学習を終了する
-                    </button>
-                </div>
-            `;
-        }
-
-        // --- バッジ・プロフィール表示 ---
-        function showBadges() {
-            const stats = getStats();
-            const badgeList = [
-                { name: "初陣", threshold: 1, icon: "fa-seedling", color: "text-green-500" },
-                { name: "熟練者", threshold: 50, icon: "fa-fire", color: "text-orange-500" },
-                { name: "マスター", threshold: 200, icon: "fa-gem", color: "text-blue-500" }
-            ];
-
-            document.getElementById('view-container').innerHTML = `
-                <div class="fade-in">
-                    <h2 class="text-2xl font-black mb-6 mt-4">獲得バッジ</h2>
-                    <div class="grid grid-cols-2 gap-4">
-                        ${badgeList.map(b => `
-                            <div class="p-6 bg-white dark:bg-slate-800 rounded-3xl text-center ${stats.totalCorrect >= b.threshold ? '' : 'opacity-30 grayscale'}">
-                                <i class="fa-solid ${b.icon} text-4xl ${b.color} mb-3"></i>
-                                <p class="font-black text-sm">${b.name}</p>
-                                <p class="text-[10px] font-bold text-slate-400 mt-1">${b.threshold}問達成</p>
-                            </div>
-                        `).join('')}
-                    </div>
-                </div>
-            `;
+                </div>`;
+            // 描画後にヘッダー等の名前も整合させる
+            updateUIWithNewName(s.name);
         }
 
         function showProfile() {
-            const stats = getStats();
+            const s = getStats();
             document.getElementById('view-container').innerHTML = `
                 <div class="fade-in">
-                    <h2 class="text-2xl font-black mb-6 mt-4">学習実績</h2>
-                    <div class="space-y-4">
-                        <div class="p-6 bg-white dark:bg-slate-800 rounded-3xl flex justify-between items-center">
-                            <span class="font-bold text-slate-500">総解答数</span>
-                            <span class="font-black text-2xl text-blue-600">${stats.totalCorrect}問</span>
+                    <h2 class="text-3xl font-black mt-6 mb-8">プロフィール</h2>
+                    <div class="card-ui p-6 rounded-[2.5rem] mb-6 shadow-sm">
+                        <label class="text-[10px] font-black text-slate-400 uppercase mb-3 block px-1">ニックネーム</label>
+                        <div class="flex flex-wrap gap-3">
+                            <input type="text" id="nn" value="${s.name}" class="flex-1 min-w-[150px] p-4 rounded-full font-black outline-none border-2 transition-all focus:border-blue-500">
+                            <button onclick="saveName()" class="bg-blue-600 text-white px-8 py-4 rounded-full font-black shadow-lg active:scale-95">保存</button>
                         </div>
-                        <div class="p-6 bg-white dark:bg-slate-800 rounded-3xl flex justify-between items-center">
-                            <span class="font-bold text-slate-500">学習回数</span>
-                            <span class="font-black text-2xl text-emerald-500">${stats.totalSessions}回</span>
-                        </div>
-                        <button onclick="if(confirm('記録をすべて消去しますか？')){document.cookie='study_stats=;max-age=0;path=/';showHome();}" class="w-full p-4 text-xs font-bold text-red-400 bg-red-50 dark:bg-slate-800 rounded-xl mt-10">
-                            データをリセットする
-                        </button>
                     </div>
-                </div>
-            `;
+                    
+                    <div class="card-ui p-8 rounded-[2.5rem] shadow-sm">
+                        <h3 class="text-slate-400 text-[10px] font-black uppercase mb-6 tracking-widest italic">学習レポート</h3>
+                        <div class="flex justify-between items-end mb-10 border-b pb-4 dark:border-slate-800">
+                            <span class="font-black text-slate-500 text-sm">累計正解数</span>
+                            <span class="text-5xl text-blue-600 font-black">${s.total}</span>
+                        </div>
+                        <div class="space-y-6">
+                            ${subjects.map(sj => {
+                                const count = s[sj.id] || 0;
+                                const percent = Math.min(100, (count / 200) * 100);
+                                return `<div><div class="flex justify-between items-center mb-2 px-1"><span class="font-black text-sm">${sj.name}</span><span class="text-xs font-bold text-slate-400">${count} 問</span></div><div class="w-full h-2.5 bg-slate-100 dark:bg-slate-800 rounded-full overflow-hidden"><div class="${sj.color} h-full transition-all duration-1000" style="width: ${percent}%"></div></div></div>`;
+                            }).join('')}
+                        </div>
+                    </div>
+                </div>`;
         }
 
-        // --- テーマ管理 ---
-        document.getElementById('themeToggle').onclick = () => {
-            state.isDark = !state.isDark;
-            document.documentElement.classList.toggle('dark');
-            document.getElementById('themeToggle').innerHTML = state.isDark ? '<i class="fa-solid fa-sun text-yellow-400"></i>' : '<i class="fa-solid fa-moon"></i>';
-        };
+        function saveName() {
+            const s = getStats();
+            const newName = document.getElementById('nn').value.trim() || "ゲスト";
+            s.name = newName;
+            saveStats(s);
+            openModal("保存完了", "<i class='fa-solid fa-check-circle text-emerald-500'></i>", "SUCCESS", "ニックネームを更新しました！");
+        }
+
+        // その他の共通関数
+        function openModal(title, iconHtml, status, desc) {
+            document.getElementById('modal-title').innerText = title;
+            document.getElementById('modal-icon').innerHTML = iconHtml;
+            document.getElementById('modal-status').innerText = status;
+            document.getElementById('modal-status').className = `text-[10px] font-black tracking-widest mb-6 ${status === '獲得済み' ? 'text-emerald-500' : 'text-slate-400'}`;
+            document.getElementById('modal-desc').innerText = desc;
+            document.getElementById('modal').classList.add('active');
+        }
+        function closeModal() { document.getElementById('modal').classList.remove('active'); }
+        function showBadges() { /* 同上のロジック */ const s = getStats(); document.getElementById('view-container').innerHTML = `<div class="fade-in"><h2 class="text-3xl font-black mt-6 mb-10 px-1">コレクション</h2><div class="badge-grid">${badges.map((b) => { const val = s.total || 0; const isUnlocked = val >= b.t; const isHiding = b.s === 1 && !isUnlocked; const iconClass = isUnlocked ? b.c : 'text-slate-200 dark:text-slate-700'; const borderClass = isUnlocked ? b.c.replace('text','border') : 'border-transparent'; const iconHtml = `<div class="card-ui w-20 h-20 flex items-center justify-center rounded-[2.2rem] border-2 ${borderClass} shadow-inner"><i class="fa-solid ${isHiding ? 'fa-lock' : b.i} ${iconClass} text-3xl"></i></div>`; const displayName = isHiding ? '？？？？' : b.n; const statusText = isUnlocked ? '獲得済み' : '未獲得'; let desc = isUnlocked ? `獲得済み！\n累計 ${b.t} 問正解を達成しました。` : (!isHiding ? `あと ${b.t - val} 問正解で獲得できます。\n(目標: ${b.t} / 現在: ${val})` : `このバッジの正体は秘密です。`); return `<button onclick="openModal('${displayName}', '${iconHtml.replace(/"/g, '&quot;')}', '${statusText}', '${desc.replace(/\n/g, '\\n')}')" class="badge-btn active:scale-90">${iconHtml}<span class="badge-text font-black ${isHiding ? 'text-slate-400' : ''}">${displayName}</span></button>`; }).join('')}</div></div>`; }
+        document.getElementById('themeToggle').onclick = () => { document.documentElement.classList.toggle('dark'); const isDark = document.documentElement.classList.contains('dark'); document.getElementById('themeToggle').innerHTML = isDark ? '<i class="fa-solid fa-sun text-yellow-400"></i>' : '<i class="fa-solid fa-moon"></i>'; };
 
         showHome();
     </script>
