@@ -26,15 +26,11 @@
         .modal-content { transform: scale(0.9); transition: 0.3s cubic-bezier(0.34, 1.56, 0.64, 1); width: 100%; max-width: 340px; }
         .modal-overlay.active .modal-content { transform: scale(1); }
 
-        .badge-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; row-gap: 32px; }
-        .badge-btn { display: flex; flex-direction: column; align-items: center; width: 100%; transition: 0.2s; }
-        .badge-btn:last-child:nth-child(3n+1) { grid-column-start: 2; }
-        .badge-text { font-size: 10px; font-weight: 900; line-height: 1.2; height: 2.4em; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; text-align: center; margin-top: 8px; width: 100%; }
-
         .fade-in { animation: fadeIn 0.4s ease-out forwards; }
         @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
         .slide-up { animation: slideUp 0.4s cubic-bezier(0, 0.55, 0.45, 1) forwards; }
         @keyframes slideUp { from { transform: translateY(100%); } to { transform: translateY(0); } }
+        
         .feedback-pop { position: fixed; inset: 0; display: flex; align-items: center; justify-content: center; font-size: 8rem; font-weight: 900; z-index: 150; pointer-events: none; animation: popScale 0.8s ease-out forwards; }
         @keyframes popScale { 0% { transform: scale(0); opacity: 0; } 50% { transform: scale(1.2); opacity: 0.8; } 100% { transform: scale(1); opacity: 0; } }
 
@@ -42,6 +38,10 @@
         .nav-btn.active { color: #2563eb; }
         .dark .nav-btn.active { color: #60a5fa; }
         nav { padding-bottom: env(safe-area-inset-bottom); height: var(--nav-h); }
+
+        /* ヒントボタンのアニメーション */
+        .hint-btn { animation: pulse 2s infinite; }
+        @keyframes pulse { 0% { opacity: 1; } 50% { opacity: 0.6; } 100% { opacity: 1; } }
     </style>
 </head>
 <body>
@@ -87,7 +87,7 @@
 
     <script>
         const subjects = [
-            { id: 'kokugo', name: '国語', color: 'bg-red-500', icon: 'fa-book-open', desc: '読解力と言語感覚を磨く', units: { 1: ["漢字の成り立ち", "文の組み立て"], 2: ["敬語", "短歌・俳句"], 3: ["和歌の心", "論説文"] } },
+            { id: 'kokugo', name: '国語', color: 'bg-red-500', icon: 'fa-book-open', desc: '読解力と言語感覚を磨く', units: { 1: ["漢字の成り立ち", "文の組み立て", "指示語と接続語", "古文の読み方"], 2: ["敬語", "短歌・俳句"], 3: ["和歌の心", "論説文"] } },
             { id: 'math', name: '数学', color: 'bg-blue-500', icon: 'fa-calculator', desc: '論理的思考と計算力を鍛える', units: { 1: ["正負の数", "方程式"], 2: ["連立方程式", "一次関数"], 3: ["因数分解", "二次方程式"] } },
             { id: 'english', name: '英語', color: 'bg-purple-500', icon: 'fa-language', desc: '世界とつながる言葉を学ぶ', units: { 1: ["be動詞", "一般動詞"], 2: ["未来形", "不定詞"], 3: ["現在完了", "関係代名詞"] } },
             { id: 'science', name: '理科', color: 'bg-emerald-500', icon: 'fa-flask', desc: '自然の仕組みを解き明かす', units: { 1: ["植物", "物質"], 2: ["化学変化", "細胞"], 3: ["イオン", "天体"] } },
@@ -109,7 +109,7 @@
 
         function updateActiveNav(id) {
             document.querySelectorAll('.nav-btn').forEach(btn => btn.classList.remove('active'));
-            document.getElementById(`nav-${id}`).classList.add('active');
+            if(document.getElementById(`nav-${id}`)) document.getElementById(`nav-${id}`).classList.add('active');
         }
         function closeAllPopups() { closeModal(); closeNameModal(); const ex = document.getElementById('explanation-overlay'); if (ex) ex.remove(); }
         function closeModal() { document.getElementById('modal').classList.remove('active'); }
@@ -157,26 +157,27 @@
 
                 container.innerHTML = `<div class="fade-in">
                     <h2 class="text-3xl font-black mt-6 mb-10 px-1 dark:text-white">コレクション</h2>
-                    <div class="badge-grid">${badges.map((b) => { 
-                        // 条件判定
-                        let val = 0, required = b.c.v;
-                        if(b.c.t === 'total') val = s.total || 0;
-                        else if(b.c.t === 'sessions') val = s.sessions || 0;
-                        else if(b.c.t === 'typed') val = s.typedChars || 0;
-                        else if(b.c.t === 'subject') val = s[b.c.s] || 0;
-                        
-                        const isUnlocked = val >= required; 
-                        const isHiding = b.sec === true && !isUnlocked; 
-                        const iconClass = isUnlocked ? b.col : 'text-slate-200 dark:text-slate-700';
-                        const iconHtml = `<div class="card-ui w-20 h-20 flex items-center justify-center rounded-[2.2rem] border-2 shadow-inner"><i class="fa-solid ${isHiding ? 'fa-lock' : b.i} ${iconClass} text-3xl"></i></div>`;
-                        const displayName = isHiding ? '？？？？' : b.n;
-                        
-                        let desc = isUnlocked ? `獲得済み！\n${b.desc}` : (!isHiding ? `あと ${required - val} ${b.c.t === 'sessions' ? 'ページ' : (b.c.t === 'typed' ? '文字' : '問')} で獲得できます。` : `このバッジの取得条件は秘密です。`);
-                        return `<button onclick="openModal('${displayName}', '${iconHtml.replace(/"/g, '&quot;')}', '${isUnlocked ? '獲得済み' : '未獲得'}', '${desc.replace(/\n/g, '\\n')}')" class="badge-btn active:scale-90">${iconHtml}<span class="badge-text font-black dark:text-slate-400 ${isHiding ? 'text-slate-400' : ''}">${displayName}</span></button>`;
-                    }).join('')}</div>
+                    <div class="grid grid-cols-3 gap-3">
+                        ${badges.map((b) => { 
+                            let val = 0, required = b.c.v;
+                            if(b.c.t === 'total') val = s.total || 0;
+                            else if(b.c.t === 'sessions') val = s.sessions || 0;
+                            else if(b.c.t === 'typed') val = s.typedChars || 0;
+                            else if(b.c.t === 'subject') val = s[b.c.s] || 0;
+                            
+                            const isUnlocked = val >= required; 
+                            const isHiding = b.sec === true && !isUnlocked; 
+                            const iconClass = isUnlocked ? b.col : 'text-slate-200 dark:text-slate-700';
+                            const iconHtml = `<div class="card-ui w-20 h-20 flex items-center justify-center rounded-[2.2rem] border-2 shadow-inner"><i class="fa-solid ${isHiding ? 'fa-lock' : b.i} ${iconClass} text-3xl"></i></div>`;
+                            const displayName = isHiding ? '？？？？' : b.n;
+                            
+                            let desc = isUnlocked ? `獲得済み！\n${b.desc}` : (!isHiding ? `あと ${required - val} ${b.c.t === 'sessions' ? 'ページ' : (b.c.t === 'typed' ? '文字' : '問')} で獲得できます。` : `このバッジの取得条件は秘密です。`);
+                            return `<button onclick="openModal('${displayName}', '${iconHtml.replace(/"/g, '&quot;')}', '${isUnlocked ? '獲得済み' : '未獲得'}', '${desc.replace(/\n/g, '\\n')}')" class="flex flex-col items-center active:scale-90">${iconHtml}<span class="text-[10px] font-black dark:text-slate-400 mt-2 text-center h-8 leading-tight">${displayName}</span></button>`;
+                        }).join('')}
+                    </div>
                 </div>`; 
             } catch(e) {
-                container.innerHTML = `<div class="text-center py-20"><p class="font-black text-red-500 mb-2">バッジデータが見つかりません</p><p class="text-xs text-slate-400">サーバー環境で実行してください</p></div>`;
+                container.innerHTML = `<div class="text-center py-20"><p class="font-black text-red-500 mb-2">バッジデータが見つかりません</p></div>`;
             }
         }
 
@@ -193,22 +194,16 @@
                 </div>
                 <div class="card-ui p-8 rounded-[2.5rem] shadow-sm">
                     <h3 class="text-slate-400 text-[10px] font-black uppercase mb-6">学習レポート</h3>
-                    
                     <div class="grid grid-cols-2 gap-4 mb-8">
                         <div class="p-4 bg-slate-50 dark:bg-slate-800 rounded-2xl">
                             <span class="text-[10px] font-black text-slate-400 block mb-1">累計正解数</span>
-                            <span class="text-3xl text-blue-600 font-black">${s.total} <span class="text-sm text-slate-500">問</span></span>
+                            <span class="text-3xl text-blue-600 font-black">${s.total}</span>
                         </div>
                         <div class="p-4 bg-slate-50 dark:bg-slate-800 rounded-2xl">
                             <span class="text-[10px] font-black text-slate-400 block mb-1">クリア数</span>
-                            <span class="text-3xl text-emerald-500 font-black">${s.sessions || 0} <span class="text-sm text-slate-500">回</span></span>
-                        </div>
-                        <div class="p-4 bg-slate-50 dark:bg-slate-800 rounded-2xl col-span-2">
-                            <span class="text-[10px] font-black text-slate-400 block mb-1">タイピング数 (入力問題)</span>
-                            <span class="text-3xl text-amber-500 font-black">${s.typedChars || 0} <span class="text-sm text-slate-500">文字</span></span>
+                            <span class="text-3xl text-emerald-500 font-black">${s.sessions || 0}</span>
                         </div>
                     </div>
-
                     <div class="space-y-6">${subjects.map(sj => {
                         const count = s[sj.id] || 0;
                         const percent = Math.min(100, (count / 20) * 100);
@@ -222,8 +217,7 @@
             const val = document.getElementById('edit-nn').value.trim();
             if(!val) return;
             const s = getStats(); s.name = val;
-            saveStats(s); 
-            closeNameModal();
+            saveStats(s); closeNameModal();
             if(document.getElementById('profile-name-display')) document.getElementById('profile-name-display').innerText = s.name;
         }
 
@@ -255,14 +249,16 @@
             const container = document.getElementById('view-container');
             container.innerHTML = `<div class="flex items-center justify-center min-h-[50vh]"><i class="fa-solid fa-circle-notch animate-spin text-4xl text-blue-500"></i></div>`;
             try {
-                const response = await fetch(`questions/${state.subj}${state.grade}${type}.json`);
+                // ファイル名は教科+学年 (例: kokugo1.json)
+                const response = await fetch(`questions/${state.subj}${state.grade}.json`);
                 if (!response.ok) throw new Error();
                 const data = await response.json();
-                state.queue = data.filter(q => q.unit === state.unit).sort(() => Math.random() - 0.5);
-                if (state.queue.length === 0) throw new Error();
+                // 選択した単元とタイプに一致するものをフィルタリング
+                state.queue = data.filter(q => q.unit === state.unit && q.type === type).sort(() => Math.random() - 0.5);
+                if (state.queue.length === 0) throw new Error("No data found for this level.");
                 state.index = 0; state.totalQuestions = state.queue.length; render();
             } catch (e) {
-                container.innerHTML = `<div class="text-center py-20"><p class="font-black text-red-500 mb-2">問題データが見つかりません</p><button onclick="showLevel()" class="mt-8 px-8 py-3 bg-slate-200 dark:bg-slate-800 rounded-full font-black text-sm">戻る</button></div>`;
+                container.innerHTML = `<div class="text-center py-20"><p class="font-black text-red-500 mb-2">問題データが見つかりません</p><p class="text-xs text-slate-400 mb-8">${state.unit}の「${type}」は準備中です</p><button onclick="showLevel()" class="px-8 py-3 bg-slate-200 dark:bg-slate-800 rounded-full font-black text-sm">戻る</button></div>`;
             }
         }
 
@@ -279,25 +275,37 @@
                     <div class="w-full h-2 bg-slate-200 dark:bg-slate-700 rounded-full mb-6 overflow-hidden">
                         <div class="h-full bg-blue-500 transition-all duration-500" style="width: ${progress}%"></div>
                     </div>
-                    <div class="card-ui p-10 rounded-[2.5rem] shadow-sm text-center mb-8 min-h-[160px] flex items-center justify-center">
-                        <p class="text-xl font-black leading-relaxed dark:text-white">${q.question}</p>
+                    <div class="relative card-ui p-10 rounded-[2.5rem] shadow-sm text-center mb-8 min-h-[160px] flex items-center justify-center">
+                        <p class="text-xl font-black leading-relaxed dark:text-white">${q.question.replace(/\n/g, '<br>')}</p>
+                        ${q.hint ? `<button onclick="showHint('${q.hint}')" class="hint-btn absolute -top-3 -right-3 w-12 h-12 bg-amber-400 text-white rounded-full shadow-lg text-xl flex items-center justify-center border-4 border-white dark:border-slate-900"><i class="fa-solid fa-lightbulb"></i></button>` : ''}
                     </div>
                     <div id="answer-zone" class="space-y-3">${renderUI(q)}</div>
                 </div>`;
         }
 
         function renderUI(q) {
-            if (state.type === 'basic') return q.options.map(o => `<button onclick="check('${o}')" class="card-ui w-full p-5 rounded-2xl font-bold text-left active:scale-95 hover:border-blue-500 dark:text-white">${o}</button>`).join('');
-            if (state.type === 'input') return `<input type="text" id="userInput" class="w-full p-5 border-2 rounded-2xl mb-4 text-center font-bold text-2xl dark:bg-slate-800 dark:border-slate-700 dark:text-white" placeholder="答えを入力"><button onclick="check(document.getElementById('userInput').value)" class="w-full p-5 bg-blue-600 text-white rounded-2xl font-black shadow-lg">回答を送信</button>`;
+            if (q.type === 'basic') return q.options.map(o => `<button onclick="check('${o}')" class="card-ui w-full p-5 rounded-2xl font-bold text-left active:scale-95 hover:border-blue-500 dark:text-white">${o}</button>`).join('');
+            if (q.type === 'input') return `<input type="text" id="userInput" class="w-full p-5 border-2 rounded-2xl mb-4 text-center font-bold text-2xl dark:bg-slate-800 dark:border-slate-700 dark:text-white" placeholder="答えを入力" autofocus><button onclick="check(document.getElementById('userInput').value)" class="w-full p-5 bg-blue-600 text-white rounded-2xl font-black shadow-lg">回答を送信</button>`;
             return `<textarea id="userText" class="w-full p-5 border-2 rounded-2xl mb-4 h-40 font-medium dark:bg-slate-800 dark:border-slate-700 dark:text-white" placeholder="考え方のメモ..."></textarea><button onclick="check('essay_confirm')" class="w-full p-5 bg-amber-500 text-white rounded-2xl font-black shadow-lg">正解を確認</button>`;
+        }
+
+        function showHint(text) {
+            const h = document.createElement('div');
+            h.className = 'fixed inset-0 z-[300] flex items-center justify-center p-6 bg-black/40 backdrop-blur-sm';
+            h.innerHTML = `<div class="card-ui p-8 rounded-[2rem] max-w-xs w-full text-center slide-up">
+                <div class="w-16 h-16 bg-amber-100 text-amber-500 rounded-full flex items-center justify-center text-3xl mx-auto mb-4"><i class="fa-solid fa-lightbulb"></i></div>
+                <h4 class="font-black mb-2 dark:text-white">ヒント</h4>
+                <p class="text-sm font-bold text-slate-500 dark:text-slate-300 leading-relaxed mb-6">${text}</p>
+                <button onclick="this.parentElement.parentElement.remove()" class="w-full py-4 bg-slate-900 dark:bg-slate-700 text-white rounded-full font-black">わかった！</button>
+            </div>`;
+            document.body.appendChild(h);
         }
 
         function check(ans) {
             const q = state.queue[state.index];
-            const isCorrect = (state.type === 'essay') ? true : (ans.trim() === q.answer);
+            const isCorrect = (q.type === 'essay') ? true : (ans.trim() === q.answer);
             
-            // 入力文字数をカウント(合否に関わらずタイピング量として)
-            if(state.type === 'input' && ans.trim().length > 0) {
+            if(q.type === 'input' && ans.trim().length > 0) {
                 const s = getStats();
                 s.typedChars = (s.typedChars || 0) + ans.trim().length;
                 saveStats(s);
@@ -315,14 +323,23 @@
             overlay.id = 'explanation-overlay';
             overlay.className = 'fixed top-16 bottom-[80px] left-0 right-0 bg-black/60 z-[100] flex items-end pb-[env(safe-area-inset-bottom)]';
             overlay.innerHTML = `
-                <div class="w-full bg-white dark:bg-slate-900 rounded-t-[40px] p-8 slide-up border-t-4 ${isCorrect ? 'border-red-500' : 'border-blue-500'}">
+                <div class="w-full bg-white dark:bg-slate-900 rounded-t-[40px] p-8 slide-up border-t-4 ${isCorrect ? 'border-red-500' : 'border-blue-500'} max-h-[80%] overflow-y-auto">
                     <div class="max-w-md mx-auto pb-4">
                         <div class="flex justify-between items-center mb-6">
                             <h3 class="text-3xl font-black ${isCorrect ? 'text-red-500' : 'text-blue-500'}">${isCorrect ? '正解！' : '不正解...'}</h3>
                             <button id="nextBtn" class="bg-blue-600 text-white px-10 py-4 rounded-2xl font-black shadow-lg">次へ</button>
                         </div>
-                        <div class="p-5 bg-slate-50 dark:bg-slate-800 rounded-2xl">
-                            <p class="font-bold text-sm leading-relaxed dark:text-slate-200">${q.explanation}</p>
+                        <div class="space-y-4">
+                            <div class="p-5 bg-slate-50 dark:bg-slate-800 rounded-2xl">
+                                <span class="text-[10px] font-black text-slate-400 block mb-2 uppercase">解説</span>
+                                <p class="font-bold text-sm leading-relaxed dark:text-slate-200">${q.explanation.replace(/\n/g, '<br>')}</p>
+                            </div>
+                            ${q.options_explanation ? `
+                                <div class="p-5 border-2 border-slate-100 dark:border-slate-800 rounded-2xl">
+                                    <span class="text-[10px] font-black text-slate-400 block mb-2 uppercase">各選択肢の解説</span>
+                                    <p class="text-xs font-medium leading-relaxed dark:text-slate-400">${q.options_explanation}</p>
+                                </div>
+                            ` : ''}
                         </div>
                     </div>
                 </div>`;
@@ -330,8 +347,7 @@
             document.getElementById('nextBtn').onclick = () => { 
                 overlay.remove(); 
                 if (isCorrect) { 
-                    const s = getStats(); 
-                    s.total++; 
+                    const s = getStats(); s.total++; 
                     s[state.subj] = (s[state.subj] || 0) + 1; 
                     saveStats(s); 
                 } else { 
@@ -342,16 +358,12 @@
         }
 
         function finish() {
-            // セッション(クリア回数)を追加
-            const s = getStats();
-            s.sessions = (s.sessions || 0) + 1;
-            saveStats(s);
-
+            const s = getStats(); s.sessions = (s.sessions || 0) + 1; saveStats(s);
             document.getElementById('view-container').innerHTML = `
                 <div class="fade-in text-center py-10">
                     <div class="w-24 h-24 bg-yellow-400 rounded-full flex items-center justify-center text-white text-5xl mx-auto mb-6 shadow-xl animate-bounce"><i class="fa-solid fa-crown"></i></div>
                     <h2 class="text-3xl font-black mb-2 dark:text-white">COMPLETE!</h2>
-                    <p class="text-slate-500 font-bold mb-10">全ての課題をクリア！</p>
+                    <p class="text-slate-500 font-bold mb-10">単元の課題をすべてクリアしました！</p>
                     <button onclick="showHome()" class="w-full py-5 bg-blue-600 text-white rounded-full font-black shadow-lg">ホームに戻る</button>
                 </div>`;
         }
