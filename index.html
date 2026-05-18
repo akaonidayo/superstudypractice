@@ -10,7 +10,6 @@
         @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;700;900&display=swap');
         
         :root {
-            --app-height: 100vh;
             --header-h: 64px;
             --nav-h: calc(80px + env(safe-area-inset-bottom));
         }
@@ -19,6 +18,7 @@
             user-select: none; 
             margin: 0; 
             background-color: #f1f5f9;
+            overflow-x: hidden;
         }
         .app-bg { 
             min-height: 100vh;
@@ -34,7 +34,6 @@
         .dark .card-ui { background: #1e293b; border: 1px solid #334155; }
         .dark input, .dark textarea { background: #0f172a; color: white; border-color: #334155; }
 
-        /* 修正: モーダルの重なりをメニュー以外の範囲に限定 */
         .modal-overlay { 
             position: fixed; 
             top: var(--header-h);
@@ -55,7 +54,7 @@
         .modal-content { transform: scale(0.9); transition: 0.3s cubic-bezier(0.34, 1.56, 0.64, 1); width: 100%; max-width: 340px; }
         .modal-overlay.active .modal-content { transform: scale(1); }
 
-        .fade-in { animation: fadeIn 0.4s ease-out forwards; will-change: opacity, transform; }
+        .fade-in { animation: fadeIn 0.4s ease-out forwards; }
         @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
 
         .slide-up { animation: slideUp 0.4s cubic-bezier(0, 0.55, 0.45, 1) forwards; }
@@ -110,6 +109,7 @@
     </div>
 
     <script>
+        // --- データ定義 ---
         const badgeNames = ["最初の一歩", "学びの芽生え", "ノートの旅人", "ペン先の魔術師", "放課後の覇者", "知識の狩人", "朝活の達人", "記憶の保管者", "図書室の主", "インクの騎士", "閃きの開拓者", "論理の守護者", "集中力の権化", "努力の結晶", "学問の徒", "真理の門", "鉛筆の踊り子", "辞書の探検家", "知性の翼", "静寂の読書家", "数学の天才", "公式の使い手", "計算の荒獅子", "論理の要塞", "数の求道者", "英単語の王", "文法の支配者", "翻訳の達人", "語学の聖域", "対話の達人", "理科の観測者", "元素の支配者", "宇宙の目撃者", "実験の鬼", "自然の友", "歴史の証言者", "地図の覇者", "文明の伝承者", "社会の設計士", "時代の語り部"];
         const badges = [];
         for(let i=0; i<100; i++) {
@@ -130,29 +130,34 @@
         ];
 
         let state = { subj: '', grade: 1, unit: '', type: '', queue: [], index: 0, totalQuestions: 0, mistakes: [] };
-        const COOKIE_KEY = "canv_master_v1";
+        
+        // --- 修正点: CookieからLocalStorageに変更 (Safari対策) ---
+        const STORAGE_KEY = "canv_master_v1_local";
 
-        // --- クリーンアップ関数 (画面遷移時にポップアップを確実に消す) ---
+        function getStats() { 
+            const data = localStorage.getItem(STORAGE_KEY);
+            return data ? JSON.parse(data) : { name: "ゲスト", total: 0, math:0, english:0, science:0, social:0, kokugo:0 }; 
+        }
+
+        function saveStats(s) { 
+            localStorage.setItem(STORAGE_KEY, JSON.stringify(s));
+            const headerName = document.getElementById('header-display-name');
+            if(headerName) headerName.innerText = s.name;
+        }
+
         function closeAllPopups() {
             closeModal();
             const overlay = document.getElementById('explanation-overlay');
             if (overlay) overlay.remove();
         }
 
-        function getStats() { 
-            const m = document.cookie.match(new RegExp(COOKIE_KEY + '=([^;]+)')); 
-            return m ? JSON.parse(m[1]) : { name: "ゲスト", total: 0, math:0, english:0, science:0, social:0, kokugo:0 }; 
-        }
-        function saveStats(s) { 
-            document.cookie = `${COOKIE_KEY}=${JSON.stringify(s)}; max-age=31536000; path=/`; 
-            const headerName = document.getElementById('header-display-name');
-            if(headerName) headerName.innerText = s.name;
-        }
-
         function showHome() {
             closeAllPopups();
             const s = getStats();
-            document.getElementById('view-container').innerHTML = `
+            const container = document.getElementById('view-container');
+            if(!container) return;
+            
+            container.innerHTML = `
                 <div class="fade-in">
                     <div class="flex items-baseline gap-2 mt-6 mb-8">
                         <span class="text-3xl font-black">${s.name}</span>
@@ -175,60 +180,28 @@
                 </div>`;
         }
 
-        function showGrade(subjId) {
-            closeAllPopups();
-            state.subj = subjId;
-            document.getElementById('view-container').innerHTML = `
-                <div class="fade-in">
-                    <button onclick="showHome()" class="mb-4 text-slate-500 font-bold flex items-center gap-2"><i class="fa-solid fa-chevron-left"></i> 戻る</button>
-                    <h2 class="text-2xl font-black mb-6">学年を選択</h2>
-                    <div class="grid gap-3">
-                        ${[1, 2, 3].map(g => `
-                            <button onclick="showUnit('${subjId}', ${g})" class="card-ui p-6 rounded-[1.5rem] font-black text-xl flex justify-between items-center active:bg-blue-50 dark:active:bg-slate-700 transition-colors">
-                                中学校 第${g}学年
-                                <i class="fa-solid fa-chevron-right text-blue-500"></i>
-                            </button>
-                        `).join('')}
-                    </div>
-                </div>`;
-        }
-
-        function showUnit(subjId, grade) {
-            state.grade = grade;
-            const subj = subjects.find(s => s.id === subjId);
-            const units = subj.units[grade] || [];
-            document.getElementById('view-container').innerHTML = `
-                <div class="fade-in">
-                    <button onclick="showGrade('${subjId}')" class="mb-4 text-slate-500 font-bold flex items-center gap-2"><i class="fa-solid fa-chevron-left"></i> 戻る</button>
-                    <h2 class="text-2xl font-black mb-6 italic">単元を選択</h2>
-                    <div class="grid gap-3">
-                        ${units.map(u => `
-                            <button onclick="state.unit='${u}'; showLevel()" class="card-ui p-5 rounded-2xl font-bold text-left border-l-4 border-blue-500 active:bg-blue-50 dark:active:bg-slate-800 transition-colors">
-                                ${u}
-                            </button>
-                        `).join('')}
-                    </div>
-                </div>`;
-        }
-
-        function showLevel() {
-            document.getElementById('view-container').innerHTML = `
-                <div class="fade-in text-center">
-                    <button onclick="showUnit('${state.subj}', ${state.grade})" class="mb-4 text-slate-500 font-bold flex items-center gap-2 text-left"><i class="fa-solid fa-chevron-left"></i> 戻る</button>
-                    <h2 class="text-2xl font-black mb-8 mt-4">レベルを選択</h2>
-                    <div class="grid gap-5">
-                        <button onclick="fetchQuestions('basic')" class="p-8 rounded-[2.5rem] bg-blue-600 text-white shadow-xl font-black text-xl active:scale-95 transition-transform">基本・選択</button>
-                        <button onclick="fetchQuestions('input')" class="p-8 rounded-[2.5rem] bg-emerald-500 text-white shadow-xl font-black text-xl active:scale-95 transition-transform">確かめ・入力</button>
-                        <button onclick="fetchQuestions('essay')" class="p-8 rounded-[2.5rem] bg-amber-500 text-white shadow-xl font-black text-xl active:scale-95 transition-transform">応用・記述</button>
-                    </div>
-                </div>`;
-        }
-
+        // --- JSON読み込みの改善 ---
         async function fetchQuestions(type) {
             state.type = type;
             const container = document.getElementById('view-container');
-            container.innerHTML = `<div class="flex items-center justify-center min-h-[50vh]"><i class="fa-solid fa-circle-notch animate-spin text-4xl text-blue-500"></i></div>`;
+            container.innerHTML = `<div class="flex flex-col items-center justify-center min-h-[40vh] gap-4">
+                <i class="fa-solid fa-circle-notch animate-spin text-4xl text-blue-500"></i>
+                <p class="font-bold text-slate-400 animate-pulse">問題を読み込み中...</p>
+            </div>`;
+            
+            // ローカルで実行している場合の警告
+            if (window.location.protocol === 'file:') {
+                container.innerHTML = `<div class="card-ui p-8 rounded-3xl text-center">
+                    <i class="fa-solid fa-triangle-exclamation text-amber-500 text-4xl mb-4"></i>
+                    <p class="font-black mb-2">ローカルファイル制限</p>
+                    <p class="text-xs text-slate-500 leading-relaxed">iPhoneやSafariでは、ファイルを直接開くと問題データを読み込めない制限があります。Viraやサーバー上で動かす必要があります。</p>
+                    <button onclick="showLevel()" class="mt-6 px-6 py-3 bg-slate-200 rounded-full font-black text-xs">戻る</button>
+                </div>`;
+                return;
+            }
+
             try {
+                // ファイル名に拡張子.jsonが必要な場合はここで調整
                 const response = await fetch(`questions/${state.subj}${state.grade}${type}.json`);
                 if (!response.ok) throw new Error();
                 const data = await response.json();
@@ -236,9 +209,15 @@
                 if (state.queue.length === 0) throw new Error();
                 state.index = 0; state.totalQuestions = state.queue.length; render();
             } catch (e) {
-                container.innerHTML = `<div class="text-center py-20"><p class="font-black">問題データが見つかりませんでした</p><button onclick="showLevel()" class="mt-8 px-8 py-3 bg-slate-200 dark:bg-slate-800 rounded-full font-black text-sm">戻る</button></div>`;
+                container.innerHTML = `<div class="text-center py-20">
+                    <p class="font-black text-red-500 mb-2">データの読み込みに失敗しました</p>
+                    <p class="text-[10px] text-slate-400 mb-8">ファイルが存在するか確認してください</p>
+                    <button onclick="showLevel()" class="px-8 py-3 bg-slate-200 dark:bg-slate-800 rounded-full font-black text-sm">戻る</button>
+                </div>`;
             }
         }
+
+        // --- (以下、その他の関数は前回のロジックと同じですが、CookieをLocalStorageに置き換えたものを維持) ---
 
         function render() {
             if (state.index >= state.queue.length) { finish(); return; }
@@ -279,7 +258,6 @@
         function showExplanation(isCorrect, q) {
             const overlay = document.createElement('div'); 
             overlay.id = 'explanation-overlay';
-            // 修正: スマホでも上下メニューが押せるよう topとbottomを固定
             overlay.className = 'fixed top-16 bottom-[80px] left-0 right-0 bg-black/60 z-[100] flex items-end pb-[env(safe-area-inset-bottom)]';
             overlay.innerHTML = `
                 <div class="w-full bg-white dark:bg-slate-900 rounded-t-[40px] p-8 slide-up border-t-4 ${isCorrect ? 'border-red-500' : 'border-blue-500'}">
@@ -312,34 +290,62 @@
                 </div>`;
         }
 
+        function showGrade(subjId) {
+            closeAllPopups(); state.subj = subjId;
+            document.getElementById('view-container').innerHTML = `<div class="fade-in">
+                <button onclick="showHome()" class="mb-4 text-slate-500 font-bold flex items-center gap-2"><i class="fa-solid fa-chevron-left"></i> 戻る</button>
+                <h2 class="text-2xl font-black mb-6">学年を選択</h2>
+                <div class="grid gap-3">${[1, 2, 3].map(g => `<button onclick="showUnit('${subjId}', ${g})" class="card-ui p-6 rounded-[1.5rem] font-black text-xl flex justify-between items-center active:bg-blue-50 transition-colors">中学校 第${g}学年<i class="fa-solid fa-chevron-right text-blue-500"></i></button>`).join('')}</div>
+            </div>`;
+        }
+
+        function showUnit(subjId, grade) {
+            state.grade = grade;
+            const subj = subjects.find(s => s.id === subjId);
+            const units = subj.units[grade] || [];
+            document.getElementById('view-container').innerHTML = `<div class="fade-in">
+                <button onclick="showGrade('${subjId}')" class="mb-4 text-slate-500 font-bold flex items-center gap-2"><i class="fa-solid fa-chevron-left"></i> 戻る</button>
+                <h2 class="text-2xl font-black mb-6 italic">単元を選択</h2>
+                <div class="grid gap-3">${units.map(u => `<button onclick="state.unit='${u}'; showLevel()" class="card-ui p-5 rounded-2xl font-bold text-left border-l-4 border-blue-500 active:bg-blue-50 transition-colors">${u}</button>`).join('')}</div>
+            </div>`;
+        }
+
+        function showLevel() {
+            document.getElementById('view-container').innerHTML = `<div class="fade-in text-center">
+                <button onclick="showUnit('${state.subj}', ${state.grade})" class="mb-4 text-slate-500 font-bold flex items-center gap-2 text-left"><i class="fa-solid fa-chevron-left"></i> 戻る</button>
+                <h2 class="text-2xl font-black mb-8 mt-4">レベルを選択</h2>
+                <div class="grid gap-5">
+                    <button onclick="fetchQuestions('basic')" class="p-8 rounded-[2.5rem] bg-blue-600 text-white shadow-xl font-black text-xl active:scale-95 transition-transform">基本・選択</button>
+                    <button onclick="fetchQuestions('input')" class="p-8 rounded-[2.5rem] bg-emerald-500 text-white shadow-xl font-black text-xl active:scale-95 transition-transform">確かめ・入力</button>
+                    <button onclick="fetchQuestions('essay')" class="p-8 rounded-[2.5rem] bg-amber-500 text-white shadow-xl font-black text-xl active:scale-95 transition-transform">応用・記述</button>
+                </div>
+            </div>`;
+        }
+
         function showProfile() {
-            closeAllPopups();
-            const s = getStats();
-            document.getElementById('view-container').innerHTML = `
-                <div class="fade-in">
-                    <h2 class="text-3xl font-black mt-6 mb-8">プロフィール</h2>
-                    <div class="card-ui p-6 rounded-[2.5rem] mb-6">
-                        <label class="text-[10px] font-black text-slate-400 uppercase mb-3 block px-1">ニックネーム</label>
-                        <div class="flex flex-wrap gap-3">
-                            <input type="text" id="nn" value="${s.name}" class="flex-1 p-4 rounded-full font-black outline-none border-2 dark:bg-slate-800 dark:border-slate-700 dark:text-white">
-                            <button onclick="saveName()" class="bg-blue-600 text-white px-8 py-4 rounded-full font-black">保存</button>
-                        </div>
+            closeAllPopups(); const s = getStats();
+            document.getElementById('view-container').innerHTML = `<div class="fade-in">
+                <h2 class="text-3xl font-black mt-6 mb-8">プロフィール</h2>
+                <div class="card-ui p-6 rounded-[2.5rem] mb-6">
+                    <label class="text-[10px] font-black text-slate-400 uppercase mb-3 block px-1">ニックネーム</label>
+                    <div class="flex flex-wrap gap-3">
+                        <input type="text" id="nn" value="${s.name}" class="flex-1 p-4 rounded-full font-black outline-none border-2 dark:bg-slate-800 dark:border-slate-700 dark:text-white">
+                        <button onclick="saveName()" class="bg-blue-600 text-white px-8 py-4 rounded-full font-black">保存</button>
                     </div>
-                    <div class="card-ui p-8 rounded-[2.5rem] shadow-sm">
-                        <h3 class="text-slate-400 text-[10px] font-black uppercase mb-6">学習レポート</h3>
-                        <div class="flex justify-between items-end mb-10 border-b pb-4 dark:border-slate-800">
-                            <span class="font-black text-slate-500 text-sm">累計正解数</span>
-                            <span class="text-5xl text-blue-600 font-black">${s.total}</span>
-                        </div>
-                        <div class="space-y-6">
-                            ${subjects.map(sj => {
-                                const count = s[sj.id] || 0;
-                                const percent = Math.min(100, (count / 20) * 100);
-                                return `<div><div class="flex justify-between items-center mb-2 px-1"><span class="font-black text-sm">${sj.name}</span><span class="text-xs font-bold text-slate-400">${count} 問</span></div><div class="w-full h-2.5 bg-slate-100 dark:bg-slate-800 rounded-full overflow-hidden"><div class="${sj.color} h-full transition-all duration-1000" style="width: ${percent}%\"></div></div></div>`;
-                            }).join('')}
-                        </div>
+                </div>
+                <div class="card-ui p-8 rounded-[2.5rem] shadow-sm">
+                    <h3 class="text-slate-400 text-[10px] font-black uppercase mb-6">学習レポート</h3>
+                    <div class="flex justify-between items-end mb-10 border-b pb-4 dark:border-slate-800">
+                        <span class="font-black text-slate-500 text-sm">累計正解数</span>
+                        <span class="text-5xl text-blue-600 font-black">${s.total}</span>
                     </div>
-                </div>`;
+                    <div class="space-y-6">${subjects.map(sj => {
+                        const count = s[sj.id] || 0;
+                        const percent = Math.min(100, (count / 20) * 100);
+                        return `<div><div class="flex justify-between items-center mb-2 px-1"><span class="font-black text-sm">${sj.name}</span><span class="text-xs font-bold text-slate-400">${count} 問</span></div><div class="w-full h-2.5 bg-slate-100 dark:bg-slate-800 rounded-full overflow-hidden"><div class="${sj.color} h-full transition-all duration-1000" style="width: ${percent}%\"></div></div></div>`;
+                    }).join('')}</div>
+                </div>
+            </div>`;
         }
 
         function saveName() {
@@ -357,22 +363,18 @@
         function closeModal() { document.getElementById('modal').classList.remove('active'); }
 
         function showBadges() { 
-            closeAllPopups();
-            const s = getStats(); 
-            document.getElementById('view-container').innerHTML = `
-                <div class="fade-in">
-                    <h2 class="text-3xl font-black mt-6 mb-10 px-1">コレクション</h2>
-                    <div class="badge-grid">
-                        ${badges.map((b) => { 
-                            const val = s.total || 0; const isUnlocked = val >= b.t; const isHiding = b.s === 1 && !isUnlocked; 
-                            const iconClass = isUnlocked ? b.c : 'text-slate-200 dark:text-slate-700';
-                            const iconHtml = `<div class="card-ui w-20 h-20 flex items-center justify-center rounded-[2.2rem] border-2 shadow-inner"><i class="fa-solid ${isHiding ? 'fa-lock' : b.i} ${iconClass} text-3xl"></i></div>`;
-                            const displayName = isHiding ? '？？？？' : b.n;
-                            let desc = isUnlocked ? `獲得済み！\n累計 ${b.t} 問正解を達成しました。` : (!isHiding ? `あと ${b.t - val} 問正解で獲得できます。` : `このバッジの正体は秘密です。`);
-                            return `<button onclick="openModal('${displayName}', '${iconHtml.replace(/"/g, '&quot;')}', '${isUnlocked ? '獲得済み' : '未獲得'}', '${desc.replace(/\n/g, '\\n')}')" class="badge-btn active:scale-90">${iconHtml}<span class="badge-text font-black ${isHiding ? 'text-slate-400' : ''}">${displayName}</span></button>`;
-                        }).join('')}
-                    </div>
-                </div>`; 
+            closeAllPopups(); const s = getStats(); 
+            document.getElementById('view-container').innerHTML = `<div class="fade-in">
+                <h2 class="text-3xl font-black mt-6 mb-10 px-1">コレクション</h2>
+                <div class="badge-grid">${badges.map((b) => { 
+                    const val = s.total || 0; const isUnlocked = val >= b.t; const isHiding = b.s === 1 && !isUnlocked; 
+                    const iconClass = isUnlocked ? b.c : 'text-slate-200 dark:text-slate-700';
+                    const iconHtml = `<div class="card-ui w-20 h-20 flex items-center justify-center rounded-[2.2rem] border-2 shadow-inner"><i class="fa-solid ${isHiding ? 'fa-lock' : b.i} ${iconClass} text-3xl"></i></div>`;
+                    const displayName = isHiding ? '？？？？' : b.n;
+                    let desc = isUnlocked ? `獲得済み！\n累計 ${b.t} 問正解を達成しました。` : (!isHiding ? `あと ${b.t - val} 問正解で獲得できます。` : `このバッジの正体は秘密です。`);
+                    return `<button onclick="openModal('${displayName}', '${iconHtml.replace(/"/g, '&quot;')}', '${isUnlocked ? '獲得済み' : '未獲得'}', '${desc.replace(/\n/g, '\\n')}')" class="badge-btn active:scale-90">${iconHtml}<span class="badge-text font-black ${isHiding ? 'text-slate-400' : ''}">${displayName}</span></button>`;
+                }).join('')}</div>
+            </div>`; 
         }
 
         document.getElementById('themeToggle').onclick = () => {
@@ -381,10 +383,12 @@
             document.getElementById('themeToggle').innerHTML = isDark ? '<i class="fa-solid fa-sun text-yellow-400"></i>' : '<i class="fa-solid fa-moon"></i>';
         };
 
-        window.addEventListener('load', () => {
+        // --- 修正点: Safariでも確実に初期化されるようDOMContentLoadedを使用 ---
+        document.addEventListener('DOMContentLoaded', () => {
             showHome();
             const s = getStats();
-            document.getElementById('header-display-name').innerText = s.name;
+            const headerDisplayName = document.getElementById('header-display-name');
+            if (headerDisplayName) headerDisplayName.innerText = s.name;
         });
     </script>
 </body>
