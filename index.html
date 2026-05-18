@@ -11,6 +11,8 @@
         
         :root {
             --app-height: 100vh;
+            --header-h: 64px;
+            --nav-h: calc(80px + env(safe-area-inset-bottom));
         }
         body { 
             font-family: 'Noto Sans JP', sans-serif; 
@@ -32,7 +34,23 @@
         .dark .card-ui { background: #1e293b; border: 1px solid #334155; }
         .dark input, .dark textarea { background: #0f172a; color: white; border-color: #334155; }
 
-        .modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.8); display: flex; align-items: center; justify-content: center; z-index: 100; opacity: 0; pointer-events: none; transition: 0.3s; padding: 20px; }
+        /* 修正: モーダルの重なりをメニュー以外の範囲に限定 */
+        .modal-overlay { 
+            position: fixed; 
+            top: var(--header-h);
+            bottom: var(--nav-h);
+            left: 0; 
+            right: 0;
+            background: rgba(0,0,0,0.7); 
+            display: flex; 
+            align-items: center; 
+            justify-content: center; 
+            z-index: 100; 
+            opacity: 0; 
+            pointer-events: none; 
+            transition: 0.3s; 
+            padding: 20px; 
+        }
         .modal-overlay.active { opacity: 1; pointer-events: auto; }
         .modal-content { transform: scale(0.9); transition: 0.3s cubic-bezier(0.34, 1.56, 0.64, 1); width: 100%; max-width: 340px; }
         .modal-overlay.active .modal-content { transform: scale(1); }
@@ -43,7 +61,7 @@
         .slide-up { animation: slideUp 0.4s cubic-bezier(0, 0.55, 0.45, 1) forwards; }
         @keyframes slideUp { from { transform: translateY(100%); } to { transform: translateY(0); } }
 
-        .feedback-pop { position: fixed; inset: 0; display: flex; align-items: center; justify-content: center; font-size: 8rem; font-weight: 900; z-index: 100; pointer-events: none; animation: popScale 0.8s ease-out forwards; }
+        .feedback-pop { position: fixed; inset: 0; display: flex; align-items: center; justify-content: center; font-size: 8rem; font-weight: 900; z-index: 150; pointer-events: none; animation: popScale 0.8s ease-out forwards; }
         @keyframes popScale { 0% { transform: scale(0); opacity: 0; } 50% { transform: scale(1.2); opacity: 0.8; } 100% { transform: scale(1); opacity: 0; } }
 
         .badge-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; row-gap: 32px; }
@@ -56,13 +74,13 @@
         
         nav {
             padding-bottom: env(safe-area-inset-bottom);
-            height: calc(80px + env(safe-area-inset-bottom));
+            height: var(--nav-h);
         }
     </style>
 </head>
 <body>
     <div id="app" class="app-bg">
-        <header class="h-16 border-b backdrop-blur sticky top-0 z-[110] flex items-center justify-between px-6 dark:border-slate-800 bg-white/80 dark:bg-slate-900/80">
+        <header class="h-16 border-b backdrop-blur sticky top-0 z-[200] flex items-center justify-between px-6 dark:border-slate-800 bg-white/80 dark:bg-slate-900/80">
             <div class="flex items-center gap-2 cursor-pointer" onclick="showHome()">
                 <div class="w-9 h-9 bg-blue-600 rounded-xl flex items-center justify-center text-white shadow-lg"><i class="fa-solid fa-pen-nib"></i></div>
                 <h1 class="font-black text-xl italic tracking-tighter" id="header-display-name">StudyCanvas</h1>
@@ -74,10 +92,10 @@
         
         <div id="feedback-layer"></div>
         
-        <nav class="fixed bottom-0 left-0 right-0 backdrop-blur border-t flex items-center justify-around z-[110] dark:border-slate-800 bg-white/80 dark:bg-slate-900/80">
-            <button onclick="showHome()" class="flex flex-col items-center text-slate-400 font-black active:text-blue-600 transition-colors"><i class="fa-solid fa-house-chimney text-xl"></i><span class="text-[10px] mt-1">HOME</span></button>
-            <button onclick="showBadges()" class="flex flex-col items-center text-slate-400 font-black active:text-blue-600 transition-colors"><i class="fa-solid fa-award text-xl"></i><span class="text-[10px] mt-1">BADGES</span></button>
-            <button onclick="showProfile()" class="flex flex-col items-center text-slate-400 font-black active:text-blue-600 transition-colors"><i class="fa-solid fa-user-gear text-xl"></i><span class="text-[10px] mt-1">PROFILE</span></button>
+        <nav class="fixed bottom-0 left-0 right-0 backdrop-blur border-t flex items-center justify-around z-[200] dark:border-slate-800 bg-white/80 dark:bg-slate-900/80">
+            <button onclick="showHome()" class="flex flex-col items-center text-slate-400 font-black active:text-blue-600 transition-colors px-4 py-2"><i class="fa-solid fa-house-chimney text-xl"></i><span class="text-[10px] mt-1">HOME</span></button>
+            <button onclick="showBadges()" class="flex flex-col items-center text-slate-400 font-black active:text-blue-600 transition-colors px-4 py-2"><i class="fa-solid fa-award text-xl"></i><span class="text-[10px] mt-1">BADGES</span></button>
+            <button onclick="showProfile()" class="flex flex-col items-center text-slate-400 font-black active:text-blue-600 transition-colors px-4 py-2"><i class="fa-solid fa-user-gear text-xl"></i><span class="text-[10px] mt-1">PROFILE</span></button>
         </nav>
     </div>
 
@@ -92,7 +110,6 @@
     </div>
 
     <script>
-        // --- データ定義 ---
         const badgeNames = ["最初の一歩", "学びの芽生え", "ノートの旅人", "ペン先の魔術師", "放課後の覇者", "知識の狩人", "朝活の達人", "記憶の保管者", "図書室の主", "インクの騎士", "閃きの開拓者", "論理の守護者", "集中力の権化", "努力の結晶", "学問の徒", "真理の門", "鉛筆の踊り子", "辞書の探検家", "知性の翼", "静寂の読書家", "数学の天才", "公式の使い手", "計算の荒獅子", "論理の要塞", "数の求道者", "英単語の王", "文法の支配者", "翻訳の達人", "語学の聖域", "対話の達人", "理科の観測者", "元素の支配者", "宇宙の目撃者", "実験の鬼", "自然の友", "歴史の証言者", "地図の覇者", "文明の伝承者", "社会の設計士", "時代の語り部"];
         const badges = [];
         for(let i=0; i<100; i++) {
@@ -115,11 +132,11 @@
         let state = { subj: '', grade: 1, unit: '', type: '', queue: [], index: 0, totalQuestions: 0, mistakes: [] };
         const COOKIE_KEY = "canv_master_v1";
 
-        // --- 追加: ポップアップを一括で閉じるクリーンアップ関数 ---
+        // --- クリーンアップ関数 (画面遷移時にポップアップを確実に消す) ---
         function closeAllPopups() {
-            closeModal(); // モーダルを閉じる
+            closeModal();
             const overlay = document.getElementById('explanation-overlay');
-            if (overlay) overlay.remove(); // 正解解説画面を消去
+            if (overlay) overlay.remove();
         }
 
         function getStats() { 
@@ -133,7 +150,7 @@
         }
 
         function showHome() {
-            closeAllPopups(); // 遷移時にポップアップを消去
+            closeAllPopups();
             const s = getStats();
             document.getElementById('view-container').innerHTML = `
                 <div class="fade-in">
@@ -261,15 +278,15 @@
 
         function showExplanation(isCorrect, q) {
             const overlay = document.createElement('div'); 
-            // 修正: IDを付与して後から削除可能にする
             overlay.id = 'explanation-overlay';
-            overlay.className = 'fixed inset-0 bg-black/60 z-[60] flex items-end';
+            // 修正: スマホでも上下メニューが押せるよう topとbottomを固定
+            overlay.className = 'fixed top-16 bottom-[80px] left-0 right-0 bg-black/60 z-[100] flex items-end pb-[env(safe-area-inset-bottom)]';
             overlay.innerHTML = `
                 <div class="w-full bg-white dark:bg-slate-900 rounded-t-[40px] p-8 slide-up border-t-4 ${isCorrect ? 'border-red-500' : 'border-blue-500'}">
-                    <div class="max-w-md mx-auto pb-8">
+                    <div class="max-w-md mx-auto pb-4">
                         <div class="flex justify-between items-center mb-6">
                             <h3 class="text-3xl font-black ${isCorrect ? 'text-red-500' : 'text-blue-500'}">${isCorrect ? '正解！' : '不正解...'}</h3>
-                            <button id="nextBtn" class="bg-blue-600 text-white px-10 py-4 rounded-2xl font-black shadow-lg">次へ進む</button>
+                            <button id="nextBtn" class="bg-blue-600 text-white px-10 py-4 rounded-2xl font-black shadow-lg">次へ</button>
                         </div>
                         <div class="p-5 bg-slate-50 dark:bg-slate-800 rounded-2xl">
                             <p class="font-bold text-sm leading-relaxed dark:text-slate-200">${q.explanation}</p>
