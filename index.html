@@ -9,7 +9,6 @@
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;700;900&display=swap');
         
-        /* 修正1: iOSの100vh問題を回避 (dvhを使用) */
         :root {
             --app-height: 100vh;
         }
@@ -17,16 +16,15 @@
             font-family: 'Noto Sans JP', sans-serif; 
             user-select: none; 
             margin: 0; 
-            background-color: #f1f5f9; /* 初期背景色を固定 */
+            background-color: #f1f5f9;
         }
         .app-bg { 
             min-height: 100vh;
-            min-height: 100dvh; /* Dynamic Viewport Height */
+            min-height: 100dvh;
             display: flex; 
             flex-direction: column; 
         }
         
-        /* 基本スタイル */
         .app-bg { background-color: #f1f5f9; color: #0f172a; }
         .card-ui { background: white; border: 1px solid #e2e8f0; }
 
@@ -39,7 +37,6 @@
         .modal-content { transform: scale(0.9); transition: 0.3s cubic-bezier(0.34, 1.56, 0.64, 1); width: 100%; max-width: 340px; }
         .modal-overlay.active .modal-content { transform: scale(1); }
 
-        /* 修正2: アニメーションの初期透明度を微調整して消失を防止 */
         .fade-in { animation: fadeIn 0.4s ease-out forwards; will-change: opacity, transform; }
         @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
 
@@ -57,7 +54,6 @@
             overflow: hidden; text-align: center; margin-top: 8px; width: 100%;
         }
         
-        /* 修正3: ナビゲーションをiPhoneのホームバー(SafeArea)に対応 */
         nav {
             padding-bottom: env(safe-area-inset-bottom);
             height: calc(80px + env(safe-area-inset-bottom));
@@ -66,7 +62,7 @@
 </head>
 <body>
     <div id="app" class="app-bg">
-        <header class="h-16 border-b backdrop-blur sticky top-0 z-50 flex items-center justify-between px-6 dark:border-slate-800 bg-white/80 dark:bg-slate-900/80">
+        <header class="h-16 border-b backdrop-blur sticky top-0 z-[110] flex items-center justify-between px-6 dark:border-slate-800 bg-white/80 dark:bg-slate-900/80">
             <div class="flex items-center gap-2 cursor-pointer" onclick="showHome()">
                 <div class="w-9 h-9 bg-blue-600 rounded-xl flex items-center justify-center text-white shadow-lg"><i class="fa-solid fa-pen-nib"></i></div>
                 <h1 class="font-black text-xl italic tracking-tighter" id="header-display-name">StudyCanvas</h1>
@@ -78,7 +74,7 @@
         
         <div id="feedback-layer"></div>
         
-        <nav class="fixed bottom-0 left-0 right-0 backdrop-blur border-t flex items-center justify-around z-40 dark:border-slate-800 bg-white/80 dark:bg-slate-900/80">
+        <nav class="fixed bottom-0 left-0 right-0 backdrop-blur border-t flex items-center justify-around z-[110] dark:border-slate-800 bg-white/80 dark:bg-slate-900/80">
             <button onclick="showHome()" class="flex flex-col items-center text-slate-400 font-black active:text-blue-600 transition-colors"><i class="fa-solid fa-house-chimney text-xl"></i><span class="text-[10px] mt-1">HOME</span></button>
             <button onclick="showBadges()" class="flex flex-col items-center text-slate-400 font-black active:text-blue-600 transition-colors"><i class="fa-solid fa-award text-xl"></i><span class="text-[10px] mt-1">BADGES</span></button>
             <button onclick="showProfile()" class="flex flex-col items-center text-slate-400 font-black active:text-blue-600 transition-colors"><i class="fa-solid fa-user-gear text-xl"></i><span class="text-[10px] mt-1">PROFILE</span></button>
@@ -119,6 +115,13 @@
         let state = { subj: '', grade: 1, unit: '', type: '', queue: [], index: 0, totalQuestions: 0, mistakes: [] };
         const COOKIE_KEY = "canv_master_v1";
 
+        // --- 追加: ポップアップを一括で閉じるクリーンアップ関数 ---
+        function closeAllPopups() {
+            closeModal(); // モーダルを閉じる
+            const overlay = document.getElementById('explanation-overlay');
+            if (overlay) overlay.remove(); // 正解解説画面を消去
+        }
+
         function getStats() { 
             const m = document.cookie.match(new RegExp(COOKIE_KEY + '=([^;]+)')); 
             return m ? JSON.parse(m[1]) : { name: "ゲスト", total: 0, math:0, english:0, science:0, social:0, kokugo:0 }; 
@@ -130,6 +133,7 @@
         }
 
         function showHome() {
+            closeAllPopups(); // 遷移時にポップアップを消去
             const s = getStats();
             document.getElementById('view-container').innerHTML = `
                 <div class="fade-in">
@@ -155,6 +159,7 @@
         }
 
         function showGrade(subjId) {
+            closeAllPopups();
             state.subj = subjId;
             document.getElementById('view-container').innerHTML = `
                 <div class="fade-in">
@@ -256,6 +261,8 @@
 
         function showExplanation(isCorrect, q) {
             const overlay = document.createElement('div'); 
+            // 修正: IDを付与して後から削除可能にする
+            overlay.id = 'explanation-overlay';
             overlay.className = 'fixed inset-0 bg-black/60 z-[60] flex items-end';
             overlay.innerHTML = `
                 <div class="w-full bg-white dark:bg-slate-900 rounded-t-[40px] p-8 slide-up border-t-4 ${isCorrect ? 'border-red-500' : 'border-blue-500'}">
@@ -289,6 +296,7 @@
         }
 
         function showProfile() {
+            closeAllPopups();
             const s = getStats();
             document.getElementById('view-container').innerHTML = `
                 <div class="fade-in">
@@ -332,6 +340,7 @@
         function closeModal() { document.getElementById('modal').classList.remove('active'); }
 
         function showBadges() { 
+            closeAllPopups();
             const s = getStats(); 
             document.getElementById('view-container').innerHTML = `
                 <div class="fade-in">
@@ -355,7 +364,6 @@
             document.getElementById('themeToggle').innerHTML = isDark ? '<i class="fa-solid fa-sun text-yellow-400"></i>' : '<i class="fa-solid fa-moon"></i>';
         };
 
-        // 修正5: ページ読み込み完了後に確実に描画を開始
         window.addEventListener('load', () => {
             showHome();
             const s = getStats();
